@@ -16,9 +16,9 @@ export const runtime = 'nodejs';
 
 const callbackQuerySchema = z
   .object({
-    code: z.string().min(1).optional(),
+    code: z.string().min(1).max(4096).optional(),
     error: z.string().min(1).max(200).optional(),
-    state: z.string().min(1),
+    state: z.string().min(1).max(256),
   })
   .strict();
 

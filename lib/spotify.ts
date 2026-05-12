@@ -80,7 +80,7 @@ export async function exchangeSpotifyAuthorizationCode(
     });
 
     if (!response.ok) {
-      throw new SpotifyTokenExchangeError('Spotify token exchange failed.', response.status);
+      throw new SpotifyTokenExchangeError('Spotify token exchange failed.', 502);
     }
 
     const json = (await response.json()) as unknown;

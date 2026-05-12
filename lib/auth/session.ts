@@ -8,6 +8,8 @@ export const SPOTIFY_SESSION_COOKIE = 'spotify_ai_dj_session';
 
 const OAUTH_STATE_MAX_AGE_SECONDS = 10 * 60;
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+const SESSION_MAX_AGE_MS = SESSION_MAX_AGE_SECONDS * 1000;
+const MAX_MOCK_SESSIONS = 500;
 
 export type SpotifyTokenSession = {
   id: string;
@@ -39,6 +41,26 @@ function getSessionStore(): SessionStore {
   }
 
   return globalStore.__spotifyAiDjSessionStore;
+}
+
+function pruneExpiredSessions(store: SessionStore, now: number): void {
+  for (const [sessionId, session] of store) {
+    if (now - session.createdAt > SESSION_MAX_AGE_MS) {
+      store.delete(sessionId);
+    }
+  }
+}
+
+function pruneOldestSessions(store: SessionStore): void {
+  while (store.size > MAX_MOCK_SESSIONS) {
+    const oldestSessionId = store.keys().next().value as string | undefined;
+
+    if (!oldestSessionId) {
+      return;
+    }
+
+    store.delete(oldestSessionId);
+  }
 }
 
 export function generateOpaqueToken(byteLength = 32): string {
@@ -114,7 +136,10 @@ export function createSpotifySession(
     createdAt: now,
   };
 
-  getSessionStore().set(sessionId, session);
+  const store = getSessionStore();
+  pruneExpiredSessions(store, now);
+  store.set(sessionId, session);
+  pruneOldestSessions(store);
 
   response.cookies.set(SPOTIFY_SESSION_COOKIE, sessionId, {
     httpOnly: true,
@@ -134,5 +159,17 @@ export function getSpotifySession(request: NextRequest): SpotifyTokenSession | n
     return null;
   }
 
-  return getSessionStore().get(sessionId) ?? null;
+  const store = getSessionStore();
+  const session = store.get(sessionId);
+
+  if (!session) {
+    return null;
+  }
+
+  if (Date.now() - session.createdAt > SESSION_MAX_AGE_MS) {
+    store.delete(sessionId);
+    return null;
+  }
+
+  return session;
 }
