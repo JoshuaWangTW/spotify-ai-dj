@@ -81,19 +81,20 @@ const musicNotes = [
 ];
 
 async function main() {
-  await prisma.musicNote.deleteMany({
-    where: {
-      OR: musicNotes.map((note) => ({
-        artistOrComposer: note.artistOrComposer,
-        title: note.title,
-        type: note.type,
-      })),
-    },
-  });
-
-  await prisma.musicNote.createMany({
-    data: musicNotes,
-  });
+  await prisma.$transaction([
+    prisma.musicNote.deleteMany({
+      where: {
+        OR: musicNotes.map((note) => ({
+          artistOrComposer: note.artistOrComposer,
+          title: note.title,
+          type: note.type,
+        })),
+      },
+    }),
+    prisma.musicNote.createMany({
+      data: musicNotes,
+    }),
+  ]);
 }
 
 main()

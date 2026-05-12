@@ -11,7 +11,7 @@ model User {
   id                  String   @id @default(cuid())
   spotifyUserId       String   @unique
   displayName         String?
-  spotifyRefreshToken String
+  spotifyRefreshToken String // TODO: encrypt at application level before production
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
