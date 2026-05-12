@@ -1,0 +1,87 @@
+import { z } from 'zod';
+
+const optionalSecretSchema = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().min(1).optional(),
+);
+
+const optionalUrlSchema = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().url().optional(),
+);
+
+const serverEnvSchema = z.object({
+  NEXT_PUBLIC_APP_URL: z.string().url(),
+  DATABASE_URL: z.string().min(1),
+  SPOTIFY_CLIENT_ID: z.string().min(1),
+  SPOTIFY_CLIENT_SECRET: z.string().min(1),
+  SPOTIFY_REDIRECT_URI: z.string().url(),
+  OPENAI_API_KEY: z.string().min(1),
+  ANTHROPIC_API_KEY: optionalSecretSchema,
+  LLM_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
+  NEXTAUTH_SECRET: z.string().min(1),
+  REDIS_URL: optionalUrlSchema,
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+});
+
+export type ServerEnv = z.infer<typeof serverEnvSchema>;
+
+export type EnvValidationIssue = {
+  code: 'MISSING_REQUIRED_CONFIG' | 'INVALID_CONFIG_VALUE';
+  message: string;
+};
+
+export class EnvValidationError extends Error {
+  readonly issues: EnvValidationIssue[];
+
+  constructor(issues: EnvValidationIssue[]) {
+    super('Server environment validation failed.');
+    this.name = 'EnvValidationError';
+    this.issues = issues;
+  }
+}
+
+function formatEnvIssues(error: z.ZodError): EnvValidationIssue[] {
+  return error.issues.map((issue) => {
+    const code =
+      issue.code === 'invalid_type' || issue.code === 'too_small'
+        ? 'MISSING_REQUIRED_CONFIG'
+        : 'INVALID_CONFIG_VALUE';
+
+    return {
+      code,
+      message:
+        code === 'MISSING_REQUIRED_CONFIG'
+          ? 'A required server configuration value is missing.'
+          : 'A server configuration value is invalid.',
+    };
+  });
+}
+
+export function parseServerEnv(
+  env: Record<string, string | undefined>,
+): { success: true; data: ServerEnv } | { success: false; issues: EnvValidationIssue[] } {
+  const parsed = serverEnvSchema.safeParse(env);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      issues: formatEnvIssues(parsed.error),
+    };
+  }
+
+  return {
+    success: true,
+    data: parsed.data,
+  };
+}
+
+export function requireServerEnv(env: Record<string, string | undefined>): ServerEnv {
+  const parsed = parseServerEnv(env);
+
+  if (!parsed.success) {
+    throw new EnvValidationError(parsed.issues);
+  }
+
+  return parsed.data;
+}

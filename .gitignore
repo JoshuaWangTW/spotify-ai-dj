@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.DS_Store
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env*.local
+!.env.example
+.pnpm-store
+tsconfig.tsbuildinfo
+.claude/
