@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
-import {
-  generateOpaqueToken,
-  setOAuthStateCookie,
-} from '../../../../../lib/auth/session';
+import { generateOpaqueToken, setOAuthStateCookie } from '../../../../../lib/auth/session';
 import { buildSpotifyAuthorizeUrl } from '../../../../../lib/spotify';
 
 export const runtime = 'nodejs';

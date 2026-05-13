@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
+import { prisma } from '../../../../../lib/db/prisma';
 import {
   clearOAuthStateCookie,
   createSpotifySession,
   validateOAuthState,
 } from '../../../../../lib/auth/session';
+import { encryptSpotifyRefreshToken } from '../../../../../lib/auth/token-encryption';
 import {
   exchangeSpotifyAuthorizationCode,
+  fetchSpotifyUserProfile,
   SpotifyTokenExchangeError,
+  SpotifyWebApiError,
 } from '../../../../../lib/spotify';
+import { isPrismaError } from '../../../../../lib/db/errors';
 
 export const runtime = 'nodejs';
 
@@ -72,7 +77,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (query.data.error) {
-    const response = redirectWithAuthStatus(env.NEXT_PUBLIC_APP_URL, 'auth_error', 'spotify_denied');
+    const response = redirectWithAuthStatus(
+      env.NEXT_PUBLIC_APP_URL,
+      'auth_error',
+      'spotify_denied',
+    );
     clearOAuthStateCookie(response);
 
     return response;
@@ -87,10 +96,41 @@ export async function GET(request: NextRequest) {
 
   try {
     const token = await exchangeSpotifyAuthorizationCode(env, query.data.code);
+
+    if (!token.refreshToken) {
+      const response = jsonError(
+        'SPOTIFY_REFRESH_TOKEN_MISSING',
+        'Spotify OAuth response did not include a refresh token.',
+        502,
+      );
+      clearOAuthStateCookie(response);
+
+      return response;
+    }
+
+    const spotifyProfile = await fetchSpotifyUserProfile(token.accessToken);
+    const encryptedRefreshToken = encryptSpotifyRefreshToken(token.refreshToken);
+    const user = await prisma.user.upsert({
+      where: {
+        spotifyUserId: spotifyProfile.spotifyUserId,
+      },
+      update: {
+        displayName: spotifyProfile.displayName,
+        spotifyRefreshToken: encryptedRefreshToken,
+      },
+      create: {
+        displayName: spotifyProfile.displayName,
+        spotifyRefreshToken: encryptedRefreshToken,
+        spotifyUserId: spotifyProfile.spotifyUserId,
+        musicProfile: {
+          create: {},
+        },
+      },
+    });
     const response = redirectWithAuthStatus(env.NEXT_PUBLIC_APP_URL, 'auth', 'spotify_connected');
 
     clearOAuthStateCookie(response);
-    createSpotifySession(response, token);
+    createSpotifySession(response, token, user);
 
     return response;
   } catch (error) {
@@ -100,6 +140,20 @@ export async function GET(request: NextRequest) {
         'Spotify token exchange failed.',
         error.status,
       );
+      clearOAuthStateCookie(response);
+
+      return response;
+    }
+
+    if (error instanceof SpotifyWebApiError) {
+      const response = jsonError(error.code, error.message, error.status);
+      clearOAuthStateCookie(response);
+
+      return response;
+    }
+
+    if (isPrismaError(error)) {
+      const response = jsonError('DATABASE_REQUEST_FAILED', 'Database request failed.', 500);
       clearOAuthStateCookie(response);
 
       return response;

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { randomBytes, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const SPOTIFY_OAUTH_STATE_COOKIE = 'spotify_ai_dj_oauth_state';
@@ -17,7 +17,7 @@ export type SpotifyTokenSession = {
     id: string;
     displayName: string;
   };
-  spotify: {
+  spotify?: {
     accessToken: string;
     refreshToken?: string;
     tokenType: string;
@@ -31,6 +31,14 @@ type SessionStore = Map<string, SpotifyTokenSession>;
 
 type GlobalWithSpotifySessionStore = typeof globalThis & {
   __spotifyAiDjSessionStore?: SessionStore;
+};
+
+type SignedSessionPayload = {
+  createdAt: number;
+  displayName: string;
+  sessionId: string;
+  userId: string;
+  version: 1;
 };
 
 function getSessionStore(): SessionStore {
@@ -69,6 +77,85 @@ export function generateOpaqueToken(byteLength = 32): string {
 
 function isProduction(): boolean {
   return process.env.NODE_ENV === 'production';
+}
+
+function getSessionSigningSecret(): string | null {
+  return process.env.NEXTAUTH_SECRET || null;
+}
+
+function signSessionPayload(encodedPayload: string, secret: string): string {
+  return createHmac('sha256', secret).update(encodedPayload).digest('base64url');
+}
+
+function buildSessionCookieValue(session: SpotifyTokenSession): string {
+  const secret = getSessionSigningSecret();
+
+  if (!secret) {
+    return session.id;
+  }
+
+  const payload: SignedSessionPayload = {
+    createdAt: session.createdAt,
+    displayName: session.user.displayName,
+    sessionId: session.id,
+    userId: session.user.id,
+    version: 1,
+  };
+  const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const signature = signSessionPayload(encodedPayload, secret);
+
+  return `${encodedPayload}.${signature}`;
+}
+
+function parseSignedSessionCookie(value: string): SignedSessionPayload | null {
+  const secret = getSessionSigningSecret();
+
+  if (!secret) {
+    return null;
+  }
+
+  const [encodedPayload, signature] = value.split('.');
+
+  if (!encodedPayload || !signature) {
+    return null;
+  }
+
+  const expectedSignature = signSessionPayload(encodedPayload, secret);
+  const expectedBuffer = Buffer.from(expectedSignature);
+  const actualBuffer = Buffer.from(signature);
+
+  if (
+    expectedBuffer.length !== actualBuffer.length ||
+    !timingSafeEqual(expectedBuffer, actualBuffer)
+  ) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(
+      Buffer.from(encodedPayload, 'base64url').toString('utf8'),
+    ) as Partial<SignedSessionPayload>;
+
+    if (
+      payload.version !== 1 ||
+      typeof payload.sessionId !== 'string' ||
+      typeof payload.userId !== 'string' ||
+      typeof payload.displayName !== 'string' ||
+      typeof payload.createdAt !== 'number'
+    ) {
+      return null;
+    }
+
+    return {
+      createdAt: payload.createdAt,
+      displayName: payload.displayName,
+      sessionId: payload.sessionId,
+      userId: payload.userId,
+      version: 1,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function setOAuthStateCookie(response: NextResponse, state: string): void {
@@ -117,14 +204,18 @@ export function createSpotifySession(
     scope: string;
     expiresIn: number;
   },
+  user?: {
+    displayName?: string | null;
+    id: string;
+  },
 ): SpotifyTokenSession {
   const sessionId = generateOpaqueToken();
   const now = Date.now();
   const session: SpotifyTokenSession = {
     id: sessionId,
     user: {
-      id: 'mock-spotify-user',
-      displayName: 'Spotify user',
+      id: user?.id ?? 'mock-spotify-user',
+      displayName: user?.displayName ?? 'Spotify user',
     },
     spotify: {
       accessToken: token.accessToken,
@@ -141,7 +232,7 @@ export function createSpotifySession(
   store.set(sessionId, session);
   pruneOldestSessions(store);
 
-  response.cookies.set(SPOTIFY_SESSION_COOKIE, sessionId, {
+  response.cookies.set(SPOTIFY_SESSION_COOKIE, buildSessionCookieValue(session), {
     httpOnly: true,
     maxAge: SESSION_MAX_AGE_SECONDS,
     path: '/',
@@ -152,24 +243,51 @@ export function createSpotifySession(
   return session;
 }
 
-export function getSpotifySession(request: NextRequest): SpotifyTokenSession | null {
-  const sessionId = request.cookies.get(SPOTIFY_SESSION_COOKIE)?.value;
+export function rememberSpotifySession(session: SpotifyTokenSession): void {
+  const store = getSessionStore();
+  pruneExpiredSessions(store, Date.now());
+  store.set(session.id, session);
+  pruneOldestSessions(store);
+}
 
-  if (!sessionId) {
+export function getSpotifySession(request: NextRequest): SpotifyTokenSession | null {
+  const sessionCookie = request.cookies.get(SPOTIFY_SESSION_COOKIE)?.value;
+
+  if (!sessionCookie) {
     return null;
   }
 
   const store = getSessionStore();
-  const session = store.get(sessionId);
+  const legacySession = store.get(sessionCookie);
 
-  if (!session) {
+  if (legacySession) {
+    if (Date.now() - legacySession.createdAt > SESSION_MAX_AGE_MS) {
+      store.delete(legacySession.id);
+      return null;
+    }
+
+    return legacySession;
+  }
+
+  const signedSession = parseSignedSessionCookie(sessionCookie);
+
+  if (!signedSession) {
     return null;
   }
 
-  if (Date.now() - session.createdAt > SESSION_MAX_AGE_MS) {
-    store.delete(sessionId);
+  if (Date.now() - signedSession.createdAt > SESSION_MAX_AGE_MS) {
+    store.delete(signedSession.sessionId);
     return null;
   }
 
-  return session;
+  return (
+    store.get(signedSession.sessionId) ?? {
+      id: signedSession.sessionId,
+      user: {
+        id: signedSession.userId,
+        displayName: signedSession.displayName,
+      },
+      createdAt: signedSession.createdAt,
+    }
+  );
 }

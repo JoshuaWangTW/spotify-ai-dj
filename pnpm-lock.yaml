@@ -11,9 +11,6 @@ importers:
       '@prisma/client':
         specifier: ^6.19.0
         version: 6.19.3(prisma@6.19.3(typescript@5.5.4))(typescript@5.5.4)
-      dotenv:
-        specifier: ^17.2.3
-        version: 17.4.2
       next:
         specifier: 14.2.5
         version: 14.2.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -42,6 +39,9 @@ importers:
       autoprefixer:
         specifier: 10.4.19
         version: 10.4.19(postcss@8.4.35)
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.4.2
       eslint:
         specifier: 8.57.0
         version: 8.57.0

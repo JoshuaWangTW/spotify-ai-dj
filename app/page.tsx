@@ -1,6 +1,4 @@
-import ChatPanel from '../components/dj/ChatPanel';
-import NowPlaying from '../components/player/NowPlaying';
-import QueueList from '../components/queue/QueueList';
+import AiDjWorkspace from '../components/dj/AiDjWorkspace';
 
 export default function HomePage() {
   return (
@@ -18,7 +16,7 @@ export default function HomePage() {
           <div className="flex flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-300 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-              Spotify OAuth ready. Playback is still mock.
+              Spotify OAuth and Web Playback SDK ready.
             </div>
             <a
               className="rounded-md bg-emerald-500 px-3 py-2 text-center text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400"
@@ -29,11 +27,7 @@ export default function HomePage() {
           </div>
         </header>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(320px,1fr)_minmax(300px,0.9fr)_minmax(320px,1fr)]">
-          <ChatPanel />
-          <NowPlaying />
-          <QueueList />
-        </div>
+        <AiDjWorkspace />
       </div>
     </main>
   );

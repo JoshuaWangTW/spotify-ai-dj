@@ -74,8 +74,29 @@ function testStructuredError() {
   );
 }
 
+function testProductionRejectsLocalhostRedirectUri() {
+  const result = parseServerEnv({
+    ...validEnv,
+    NODE_ENV: 'production',
+    NEXT_PUBLIC_APP_URL: 'https://spotify-ai-dj.example.com',
+    SPOTIFY_REDIRECT_URI: 'http://localhost:3000/api/auth/spotify/callback',
+  });
+
+  assert.equal(result.success, false);
+
+  if (!result.success) {
+    assert.deepEqual(result.issues, [
+      {
+        code: 'INVALID_CONFIG_VALUE',
+        message: 'A server configuration value is invalid.',
+      },
+    ]);
+  }
+}
+
 testValidEnv();
 testMissingRequiredFields();
 testStructuredError();
+testProductionRejectsLocalhostRedirectUri();
 
 console.log('env-core tests passed');

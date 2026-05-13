@@ -10,19 +10,35 @@ const optionalUrlSchema = z.preprocess(
   z.string().url().optional(),
 );
 
-const serverEnvSchema = z.object({
-  NEXT_PUBLIC_APP_URL: z.string().url(),
-  DATABASE_URL: z.string().min(1),
-  SPOTIFY_CLIENT_ID: z.string().min(1),
-  SPOTIFY_CLIENT_SECRET: z.string().min(1),
-  SPOTIFY_REDIRECT_URI: z.string().url(),
-  OPENAI_API_KEY: z.string().min(1),
-  ANTHROPIC_API_KEY: optionalSecretSchema,
-  LLM_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
-  NEXTAUTH_SECRET: z.string().min(1),
-  REDIS_URL: optionalUrlSchema,
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-});
+const serverEnvSchema = z
+  .object({
+    NEXT_PUBLIC_APP_URL: z.string().url(),
+    DATABASE_URL: z.string().min(1),
+    SPOTIFY_CLIENT_ID: z.string().min(1),
+    SPOTIFY_CLIENT_SECRET: z.string().min(1),
+    SPOTIFY_REDIRECT_URI: z.string().url(),
+    OPENAI_API_KEY: z.string().min(1),
+    ANTHROPIC_API_KEY: optionalSecretSchema,
+    LLM_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
+    NEXTAUTH_SECRET: z.string().min(1),
+    REDIS_URL: optionalUrlSchema,
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  })
+  .superRefine((env, context) => {
+    if (env.NODE_ENV !== 'production') {
+      return;
+    }
+
+    const redirectUri = new URL(env.SPOTIFY_REDIRECT_URI);
+
+    if (redirectUri.hostname === 'localhost' || redirectUri.hostname === '127.0.0.1') {
+      context.addIssue({
+        code: 'custom',
+        message: 'Production Spotify redirect URI must not use localhost.',
+        path: ['SPOTIFY_REDIRECT_URI'],
+      });
+    }
+  });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
