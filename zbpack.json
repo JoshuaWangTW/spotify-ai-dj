@@ -1,4 +1,4 @@
 {
-  "build_command": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm db:migrate && pnpm build",
-  "start_command": "pnpm start"
+  "build_command": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm build",
+  "start_command": "pnpm db:migrate && pnpm start"
 }
