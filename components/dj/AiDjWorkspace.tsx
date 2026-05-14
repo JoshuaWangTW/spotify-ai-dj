@@ -215,8 +215,8 @@ export default function AiDjWorkspace() {
                 aria-selected={isActive}
                 className={`rounded-md border px-4 py-3 text-left transition ${
                   isActive
-                    ? 'border-sky-200/70 bg-sky-200/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
-                    : 'border-slate-500/20 bg-slate-950/12 text-slate-300 hover:border-sky-200/50 hover:text-white'
+                    ? 'border-sky-400/60 bg-sky-100/70 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]'
+                    : 'border-slate-200/80 bg-white/40 text-slate-600 hover:border-sky-400/40 hover:text-white'
                 }`}
                 id={`workspace-tab-${tab.id}`}
                 onClick={() => setActivePanel(tab.id)}
@@ -225,11 +225,11 @@ export default function AiDjWorkspace() {
               >
                 <span className="flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold">{tab.label}</span>
-                  <span className="rounded-md border border-white/10 bg-slate-950/24 px-2 py-0.5 text-xs text-slate-300">
+                  <span className="rounded-md border border-slate-200/60 bg-slate-100/60 px-2 py-0.5 text-xs text-slate-600">
                     {tab.meta}
                   </span>
                 </span>
-                <span className="mt-1 block truncate text-xs text-slate-500">{tab.helper}</span>
+                <span className="mt-1 block truncate text-xs text-slate-400">{tab.helper}</span>
               </button>
             );
           })}

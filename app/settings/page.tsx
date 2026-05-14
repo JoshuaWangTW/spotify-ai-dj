@@ -41,12 +41,12 @@ export default function SettingsPage() {
   const data = getSettingsData();
 
   return (
-    <div className="liquid-shell min-h-screen px-4 py-8 text-slate-100">
+    <div className="liquid-shell min-h-screen px-4 py-8 text-slate-700">
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="glass-panel flex items-center justify-between rounded-lg px-5 py-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-50">設定</h1>
-            <p className="mt-1 text-sm text-slate-400">檢查 server environment 狀態</p>
+            <h1 className="text-2xl font-bold text-slate-800">設定</h1>
+            <p className="mt-1 text-sm text-slate-500">檢查 server environment 狀態</p>
           </div>
           <div className="flex items-center gap-4">
             <a href="/" className="aqua-link text-sm">
@@ -54,7 +54,7 @@ export default function SettingsPage() {
             </a>
             <a
               href="/api/auth/logout"
-              className="glass-control rounded-md px-3 py-1.5 text-sm text-slate-300 hover:border-sky-200/60 hover:text-white"
+              className="glass-control rounded-md px-3 py-1.5 text-sm text-slate-600 hover:border-sky-400/50 hover:text-white"
             >
               登出
             </a>
@@ -64,8 +64,8 @@ export default function SettingsPage() {
         <SettingsClient initialData={data} />
 
         <div className="glass-panel space-y-3 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-slate-50">連接 Spotify</h2>
-          <p className="text-sm text-slate-400">
+          <h2 className="text-lg font-semibold text-slate-800">連接 Spotify</h2>
+          <p className="text-sm text-slate-500">
             確認 server environment 已設定 Spotify 憑證後，點擊下方按鈕進行 OAuth 授權。
           </p>
           <a

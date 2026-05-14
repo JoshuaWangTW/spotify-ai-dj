@@ -24,28 +24,28 @@ export default async function HomePage() {
   const sessionUser = await getSessionUser();
 
   return (
-    <main className="liquid-shell min-h-screen px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
+    <main className="liquid-shell min-h-screen px-4 py-6 text-slate-700 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
         <header className="glass-panel flex flex-col gap-4 rounded-lg px-5 py-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-200">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-600">
               Spotify AI DJ
             </p>
-            <h1 className="mt-3 max-w-3xl text-3xl font-semibold text-slate-50 md:text-4xl">
+            <h1 className="mt-3 max-w-3xl text-3xl font-semibold text-slate-800 md:text-4xl">
               Personal music companion for jazz, classical, and focused listening.
             </h1>
           </div>
-          <div className="glass-card flex flex-col gap-3 rounded-lg px-4 py-3 text-sm text-slate-300 sm:flex-row sm:items-center">
-            {sessionUser && <span className="text-slate-300">{sessionUser.displayName}</span>}
+          <div className="glass-card flex flex-col gap-3 rounded-lg px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center">
+            {sessionUser && <span className="text-slate-600">{sessionUser.displayName}</span>}
             <a
               href="/settings"
-              className="glass-control rounded-md px-3 py-1.5 text-center text-sm text-slate-300 transition hover:border-sky-200/60 hover:text-white"
+              className="glass-control rounded-md px-3 py-1.5 text-center text-sm text-slate-600 transition hover:border-sky-400/50 hover:text-white"
             >
               設定
             </a>
             <a
               href="/api/auth/logout"
-              className="glass-control rounded-md px-3 py-1.5 text-center text-sm text-slate-300 transition hover:border-sky-200/60 hover:text-white"
+              className="glass-control rounded-md px-3 py-1.5 text-center text-sm text-slate-600 transition hover:border-sky-400/50 hover:text-white"
             >
               登出
             </a>

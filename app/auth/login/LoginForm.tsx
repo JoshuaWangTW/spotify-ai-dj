@@ -40,12 +40,12 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="glass-panel space-y-4 rounded-lg p-6">
       {error && (
-        <div className="rounded-md border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+        <div className="rounded-md border border-rose-300/50 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       )}
       <div className="space-y-1">
-        <label htmlFor="email" className="block text-sm font-medium text-slate-300">
+        <label htmlFor="email" className="block text-sm font-medium text-slate-600">
           Email
         </label>
         <input
@@ -54,12 +54,12 @@ export default function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="glass-control w-full rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-200/70 focus:outline-none"
+          className="glass-control w-full rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:border-sky-400/60 focus:outline-none"
           placeholder="you@example.com"
         />
       </div>
       <div className="space-y-1">
-        <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+        <label htmlFor="password" className="block text-sm font-medium text-slate-600">
           密碼
         </label>
         <input
@@ -68,7 +68,7 @@ export default function LoginForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="glass-control w-full rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-200/70 focus:outline-none"
+          className="glass-control w-full rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:border-sky-400/60 focus:outline-none"
           placeholder="••••••••"
         />
       </div>

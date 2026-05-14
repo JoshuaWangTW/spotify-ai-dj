@@ -41,12 +41,12 @@ export default function ChatPanel({
     <section className="glass-panel min-h-[620px] rounded-lg p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-50">AI DJ Chat</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
+          <h2 className="text-xl font-semibold text-slate-800">AI DJ Chat</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
             輸入情境後產生搜尋策略、播放邏輯與導聆方向。
           </p>
         </div>
-        <span className="rounded-md border border-sky-200/20 bg-sky-200/10 px-2.5 py-1 text-xs font-medium text-sky-100">
+        <span className="rounded-md border border-sky-200/50 bg-sky-100/70 px-2.5 py-1 text-xs font-medium text-sky-700">
           Live
         </span>
       </div>
@@ -57,8 +57,8 @@ export default function ChatPanel({
             key={mode.value}
             className={`rounded-md border px-3 py-2 text-sm ${
               selectedMode === mode.value
-                ? 'border-sky-200/70 bg-sky-200/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
-                : 'border-slate-500/30 text-slate-300 hover:border-sky-200/60 hover:text-white'
+                ? 'border-sky-400/60 bg-sky-100/70 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]'
+                : 'border-slate-300/60 text-slate-600 hover:border-sky-400/50 hover:text-white'
             }`}
             onClick={() => onModeChange(mode.value)}
             type="button"
@@ -69,13 +69,13 @@ export default function ChatPanel({
       </div>
 
       <div className="mt-6 space-y-3">
-        <div className="glass-card rounded-lg p-4 text-slate-200">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">user</p>
+        <div className="glass-card rounded-lg p-4 text-slate-600">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">user</p>
           <p className="mt-2 leading-7">{prompt || '我想聽爵士，想學一點，不要太硬。'}</p>
         </div>
 
-        <div className="rounded-lg border border-sky-200/20 bg-sky-200/10 p-4 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+        <div className="rounded-lg border border-sky-200/50 bg-sky-100/70 p-4 text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
             assistant
           </p>
           <p className="mt-2 leading-7">
@@ -87,11 +87,11 @@ export default function ChatPanel({
 
       {plan ? (
         <div className="glass-card mt-5 rounded-lg p-4">
-          <p className="text-sm font-semibold text-slate-50">Search strategy</p>
-          <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+          <p className="text-sm font-semibold text-slate-800">Search strategy</p>
+          <div className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
             {plan.spotifySearchQueries.map((query, index) => (
               <p key={query}>
-                <span className="text-slate-500">{index + 1}.</span> {query}
+                <span className="text-slate-400">{index + 1}.</span> {query}
               </p>
             ))}
           </div>
@@ -99,14 +99,14 @@ export default function ChatPanel({
       ) : null}
 
       {errorMessage ? (
-        <div className="mt-5 rounded-md border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-sm leading-6 text-rose-100">
+        <div className="mt-5 rounded-md border border-rose-300/50 bg-rose-50 px-3 py-2 text-sm leading-6 text-rose-700">
           {errorMessage}
         </div>
       ) : null}
 
       <form className="glass-card mt-6 flex flex-col gap-3 rounded-lg p-4" onSubmit={handleSubmit}>
         <textarea
-          className="glass-control h-32 w-full resize-none rounded-md px-4 py-3 text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-200/70"
+          className="glass-control h-32 w-full resize-none rounded-md px-4 py-3 text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400/60"
           maxLength={500}
           onChange={(event) => onPromptChange(event.target.value)}
           placeholder="請輸入你的音樂需求..."

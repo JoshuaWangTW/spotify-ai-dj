@@ -30,25 +30,25 @@ export default function QueueList({
     <section className="glass-panel min-h-[620px] rounded-lg p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-50">Queue / Recommendations</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
+          <h2 className="text-xl font-semibold text-slate-800">Queue / Recommendations</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
             AI plan 的 Spotify 候選曲與推薦理由。
           </p>
         </div>
-        <span className="rounded-md border border-sky-200/20 bg-sky-200/10 px-2.5 py-1 text-xs font-medium text-sky-100">
+        <span className="rounded-md border border-sky-200/50 bg-sky-100/70 px-2.5 py-1 text-xs font-medium text-sky-700">
           {tracks.length} tracks
         </span>
       </div>
 
       <div className="mt-6 space-y-3">
         {isLoading ? (
-          <div className="glass-card rounded-lg p-4 text-sm text-slate-400">
+          <div className="glass-card rounded-lg p-4 text-sm text-slate-500">
             正在搜尋 Spotify 候選曲...
           </div>
         ) : null}
 
         {!isLoading && tracks.length === 0 ? (
-          <div className="glass-card rounded-lg p-4 text-sm leading-6 text-slate-400">
+          <div className="glass-card rounded-lg p-4 text-sm leading-6 text-slate-500">
             右側會顯示 Spotify Search 的候選曲。請先在左側送出需求。
           </div>
         ) : null}
@@ -67,26 +67,26 @@ export default function QueueList({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     alt={`${track.album} album art`}
-                    className="h-16 w-16 rounded-md border border-white/10 object-cover"
+                    className="h-16 w-16 rounded-md border border-slate-200/60 object-cover"
                     src={track.albumImageUrl}
                   />
                 ) : (
-                  <div className="h-16 w-16 rounded-md border border-white/10 bg-slate-800/50" />
+                  <div className="h-16 w-16 rounded-md border border-slate-200/60 bg-sky-100/50" />
                 )}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-50">{track.title}</p>
-                      <p className="mt-1 truncate text-sm text-slate-400">{track.artist}</p>
-                      <p className="truncate text-sm text-slate-500">{track.album}</p>
+                      <p className="truncate font-semibold text-slate-800">{track.title}</p>
+                      <p className="mt-1 truncate text-sm text-slate-500">{track.artist}</p>
+                      <p className="truncate text-sm text-slate-400">{track.album}</p>
                     </div>
-                    <span className="rounded-md border border-slate-500/30 bg-slate-900/20 px-2 py-1 text-xs text-slate-400">
+                    <span className="rounded-md border border-slate-300/60 bg-white/50 px-2 py-1 text-xs text-slate-500">
                       {track.explicit ? 'Explicit' : 'Clean'}
                     </span>
                   </div>
 
-                  <p className="mt-3 border-l-2 border-sky-200/70 pl-3 text-sm leading-6 text-slate-300">
+                  <p className="mt-3 border-l-2 border-sky-400/60 pl-3 text-sm leading-6 text-slate-600">
                     {queueReasoning ?? `搜尋策略：${track.query}`}
                   </p>
 
@@ -133,7 +133,7 @@ export default function QueueList({
                       return (
                         <button
                           key={feedbackType}
-                          className="glass-control rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-sky-200/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          className="glass-control rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-sky-400/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                           disabled={feedbackStatus === 'saving' || feedbackStatus === 'saved'}
                           onClick={() =>
                             onFeedback(
