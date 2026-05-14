@@ -78,6 +78,13 @@ textarea {
     color: var(--text-body);
   }
 
+  .liquid-control {
+    border: 1px solid var(--line-soft);
+    background: rgba(255, 255, 255, 0.45);
+    color: var(--text-body);
+    box-shadow: 0 4px 12px rgba(52, 79, 92, 0.1);
+  }
+
   .wave-dance {
     height: 48px;
     width: 100%;

@@ -258,15 +258,15 @@ export default function NowPlaying() {
         {isPlaying ? <div className="wave-dance mt-4" /> : null}
 
         <div className="mt-5 min-h-[120px]">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">正在播放</p>
-          <p className="mt-2 text-2xl font-semibold text-white">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">正在播放</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-700">
             {track?.title ?? '等待 Spotify 播放狀態'}
           </p>
-          <p className="mt-1 text-zinc-400">{track?.artist ?? '尚未收到曲目資料'}</p>
-          <p className="text-sm text-zinc-500">{track?.album ?? 'Spotify Premium required'}</p>
+          <p className="mt-1 text-slate-500">{track?.artist ?? '尚未收到曲目資料'}</p>
+          <p className="text-sm text-slate-500">{track?.album ?? 'Spotify Premium required'}</p>
           {spotifyTrackUrl ? (
             <a
-              className="mt-3 inline-flex text-xs font-medium text-emerald-300 hover:text-emerald-200"
+              className="mt-3 inline-flex text-xs font-medium text-cyan-700 hover:text-cyan-600"
               href={spotifyTrackUrl}
               rel="noreferrer"
               target="_blank"
@@ -277,27 +277,27 @@ export default function NowPlaying() {
         </div>
 
         <div className="mt-6">
-          <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
             <div
-              className="h-full rounded-full bg-emerald-400"
+              className="h-full rounded-full bg-cyan-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="mt-2 flex justify-between text-sm text-zinc-500">
+          <div className="mt-2 flex justify-between text-sm text-slate-500">
             <span>{formatDuration(track?.positionMs ?? 0)}</span>
             <span>{formatDuration(track?.durationMs ?? 0)}</span>
           </div>
         </div>
 
         {errorMessage ? (
-          <div className="mt-5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm leading-6 text-amber-100">
+          <div className="mt-5 rounded-md border border-amber-500/30 bg-amber-100/80 px-3 py-2 text-sm leading-6 text-amber-800">
             {errorMessage}
           </div>
         ) : null}
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           <button
-            className="rounded-md bg-zinc-800 px-3 py-3 text-sm text-zinc-100 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="liquid-control rounded-md px-3 py-3 text-sm hover:border-cyan-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!playerRef.current}
             onClick={() => void runPlayerCommand('previous')}
             type="button"
@@ -305,7 +305,7 @@ export default function NowPlaying() {
             上一首
           </button>
           <button
-            className="rounded-md bg-emerald-500 px-3 py-3 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md bg-cyan-200 px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!playerRef.current}
             onClick={() => void runPlayerCommand('toggle')}
             type="button"
@@ -313,7 +313,7 @@ export default function NowPlaying() {
             {isPlaying ? '暫停' : '播放'}
           </button>
           <button
-            className="rounded-md bg-zinc-800 px-3 py-3 text-sm text-zinc-100 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="liquid-control rounded-md px-3 py-3 text-sm hover:border-cyan-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!playerRef.current}
             onClick={() => void runPlayerCommand('next')}
             type="button"
@@ -323,7 +323,7 @@ export default function NowPlaying() {
         </div>
 
         {deviceId ? (
-          <p className="mt-4 break-all text-xs leading-5 text-zinc-600">Device ID: {deviceId}</p>
+          <p className="mt-4 break-all text-xs leading-5 text-slate-500">Device ID: {deviceId}</p>
         ) : null}
       </div>
     </section>
