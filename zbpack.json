@@ -1,4 +1,4 @@
 {
   "build_command": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm build",
-  "start_command": "sh scripts/start.sh"
+  "start_command": "node_modules/.bin/prisma migrate deploy && node_modules/.bin/next start"
 }
