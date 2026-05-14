@@ -43,9 +43,9 @@ const openAiErrorSchema = z
   .object({
     error: z
       .object({
+        code: z.string().nullable().optional(),
         message: z.string().optional(),
         type: z.string().optional(),
-        code: z.string().optional(),
       })
       .optional(),
   })
@@ -105,6 +105,58 @@ export class OpenAiCommentaryError extends Error {
     this.code = code;
     this.status = status;
   }
+}
+
+function createOpenAiRequestError(
+  scope: 'PLAN' | 'COMMENTARY',
+  status: number,
+  upstreamError: z.infer<typeof openAiErrorSchema> | null,
+): OpenAiPlanError | OpenAiCommentaryError {
+  const prefix = scope === 'PLAN' ? 'OPENAI_PLAN' : 'OPENAI_COMMENTARY';
+  const ErrorClass = scope === 'PLAN' ? OpenAiPlanError : OpenAiCommentaryError;
+  const upstreamCode = upstreamError?.error?.code ?? undefined;
+
+  if (status === 401) {
+    return new ErrorClass(
+      `${prefix}_AUTH_FAILED`,
+      'OpenAI API key is invalid or not authorized.',
+      401,
+    );
+  }
+
+  if (status === 403) {
+    return new ErrorClass(
+      `${prefix}_ACCESS_DENIED`,
+      'OpenAI project does not have access to this request.',
+      403,
+    );
+  }
+
+  if (status === 404 || upstreamCode === 'model_not_found') {
+    return new ErrorClass(
+      `${prefix}_MODEL_UNAVAILABLE`,
+      'Configured OpenAI model is unavailable for this API key.',
+      502,
+    );
+  }
+
+  if (status === 429) {
+    return new ErrorClass(
+      `${prefix}_RATE_LIMITED`,
+      'OpenAI quota or rate limit was reached.',
+      429,
+    );
+  }
+
+  if (status === 400) {
+    return new ErrorClass(
+      `${prefix}_BAD_REQUEST`,
+      'OpenAI rejected the request format.',
+      502,
+    );
+  }
+
+  return new ErrorClass(`${prefix}_REQUEST_FAILED`, 'OpenAI request failed.', 502);
 }
 
 function buildUserContext(input: AiDjPlanInput, profile?: MusicProfileContext | null): string {
@@ -202,12 +254,10 @@ export async function createOpenAiDjPlan(
 
     if (!response.ok) {
       const parsedError = openAiErrorSchema.safeParse(json);
-      const upstreamCode = parsedError.success ? parsedError.data.error?.code : undefined;
-
-      throw new OpenAiPlanError(
-        'OPENAI_PLAN_REQUEST_FAILED',
-        'OpenAI plan request failed.',
-        502,
+      throw createOpenAiRequestError(
+        'PLAN',
+        response.status,
+        parsedError.success ? parsedError.data : null,
       );
     }
 
@@ -300,10 +350,11 @@ export async function createOpenAiDjCommentary(
     const json = (await response.json()) as unknown;
 
     if (!response.ok) {
-      throw new OpenAiCommentaryError(
-        'OPENAI_COMMENTARY_REQUEST_FAILED',
-        'OpenAI commentary request failed.',
-        502,
+      const parsedError = openAiErrorSchema.safeParse(json);
+      throw createOpenAiRequestError(
+        'COMMENTARY',
+        response.status,
+        parsedError.success ? parsedError.data : null,
       );
     }
 

@@ -27,6 +27,14 @@ function getApiErrorMessage(body: unknown, fallback: string): string {
   return parsed.error?.message ?? fallback;
 }
 
+async function readJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(fallbackMessage);
+  }
+}
+
 export default function AiDjWorkspace() {
   const [activePanel, setActivePanel] = useState<WorkspacePanel>('chat');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -43,6 +51,8 @@ export default function AiDjWorkspace() {
   const [tracks, setTracks] = useState<SpotifyTrackCandidate[]>([]);
 
   async function handleSubmit() {
+    let planCreated = false;
+
     setErrorMessage(null);
     setIsLoading(true);
     setFeedbackStatusByKey({});
@@ -59,13 +69,18 @@ export default function AiDjWorkspace() {
         },
         method: 'POST',
       });
-      const planBody = (await planResponse.json()) as AiDjPlanOutput | ApiError;
+      const planBody = await readJsonResponse<AiDjPlanOutput | ApiError>(
+        planResponse,
+        'AI DJ plan 回傳格式錯誤。',
+      );
 
       if (!planResponse.ok || isApiError(planBody)) {
         throw new Error(getApiErrorMessage(planBody, 'AI DJ plan 產生失敗。'));
       }
 
       setPlan(planBody);
+      planCreated = true;
+      setActivePanel('queue');
 
       const searchResponse = await fetch('/api/spotify/search', {
         body: JSON.stringify({
@@ -76,20 +91,23 @@ export default function AiDjWorkspace() {
         },
         method: 'POST',
       });
-      const searchBody = (await searchResponse.json()) as
-        | { tracks: SpotifyTrackCandidate[] }
-        | ApiError;
+      const searchBody = await readJsonResponse<{ tracks: SpotifyTrackCandidate[] } | ApiError>(
+        searchResponse,
+        'Spotify search 回傳格式錯誤。',
+      );
 
       if (!searchResponse.ok || isApiError(searchBody)) {
         throw new Error(getApiErrorMessage(searchBody, 'Spotify search 失敗。'));
       }
 
       setTracks(searchBody.tracks);
-      setActivePanel('queue');
     } catch (error) {
-      setTracks([]);
+      if (!planCreated) {
+        setTracks([]);
+        setActivePanel('chat');
+      }
+
       setErrorMessage(error instanceof Error ? error.message : '產生推薦時發生錯誤。');
-      setActivePanel('chat');
     } finally {
       setIsLoading(false);
     }
