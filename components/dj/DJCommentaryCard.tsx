@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import type { AiDjCommentaryOutput } from '../../lib/ai-dj/commentary-schema';
 
@@ -26,6 +26,8 @@ export default function DJCommentaryCard({ artistName, mode, trackName }: DJComm
   const [commentary, setCommentary] = useState<AiDjCommentaryOutput | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   async function loadCommentary(depth: CommentaryDepth) {
     setErrorMessage(null);
@@ -62,6 +64,60 @@ export default function DJCommentaryCard({ artistName, mode, trackName }: DJComm
     }
   }
 
+  async function playCommentaryTts() {
+    if (!commentary?.commentary || isSpeaking) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSpeaking(true);
+
+    try {
+      const response = await fetch('/api/ai-dj/commentary/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: `${commentary.commentary}\n聆聽重點：${commentary.listeningPoints.join('；')}`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('導讀語音產生失敗。');
+      }
+
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        setIsSpeaking(false);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        setIsSpeaking(false);
+        setErrorMessage('導讀語音播放失敗。');
+      };
+      await audio.play();
+    } catch (error) {
+      setIsSpeaking(false);
+      setErrorMessage(error instanceof Error ? error.message : '導讀語音播放失敗。');
+    }
+  }
+
+  function stopCommentaryTts() {
+    if (!audioRef.current) {
+      return;
+    }
+
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current = null;
+    setIsSpeaking(false);
+  }
+
   return (
     <div className="mt-4 rounded-md border border-zinc-800 bg-zinc-900/70 p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -96,6 +152,24 @@ export default function DJCommentaryCard({ artistName, mode, trackName }: DJComm
               <li key={point}>- {point}</li>
             ))}
           </ul>
+          <div className="mt-3 flex gap-2">
+            <button
+              className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isSpeaking}
+              onClick={() => void playCommentaryTts()}
+              type="button"
+            >
+              {isSpeaking ? '播放中...' : '播放導讀語音'}
+            </button>
+            <button
+              className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!isSpeaking}
+              onClick={stopCommentaryTts}
+              type="button"
+            >
+              停止語音
+            </button>
+          </div>
         </div>
       ) : null}
 
