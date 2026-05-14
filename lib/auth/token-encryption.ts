@@ -18,6 +18,48 @@ function getEncryptionKey(): Buffer {
     .digest();
 }
 
+export function encryptSecret(plaintext: string): string {
+  const iv = randomBytes(IV_BYTE_LENGTH);
+  const cipher = createCipheriv('aes-256-gcm', getEncryptionKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  return [
+    ENCRYPTED_TOKEN_PREFIX,
+    iv.toString('base64url'),
+    authTag.toString('base64url'),
+    ciphertext.toString('base64url'),
+  ].join(':');
+}
+
+export function decryptSecret(stored: string): string {
+  if (!stored.startsWith(`${ENCRYPTED_TOKEN_PREFIX}:`)) {
+    return stored;
+  }
+
+  const [, , iv, authTag, ciphertext] = stored.split(':');
+
+  if (!iv || !authTag || !ciphertext) {
+    throw new TokenEncryptionError('Encrypted secret is malformed.');
+  }
+
+  const decipher = createDecipheriv(
+    'aes-256-gcm',
+    getEncryptionKey(),
+    Buffer.from(iv, 'base64url'),
+  );
+  decipher.setAuthTag(Buffer.from(authTag, 'base64url'));
+
+  try {
+    return Buffer.concat([
+      decipher.update(Buffer.from(ciphertext, 'base64url')),
+      decipher.final(),
+    ]).toString('utf8');
+  } catch {
+    throw new TokenEncryptionError('Encrypted secret could not be decrypted.');
+  }
+}
+
 export function encryptSpotifyRefreshToken(refreshToken: string): string {
   const iv = randomBytes(IV_BYTE_LENGTH);
   const cipher = createCipheriv('aes-256-gcm', getEncryptionKey(), iv);

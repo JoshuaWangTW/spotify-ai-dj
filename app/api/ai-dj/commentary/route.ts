@@ -4,7 +4,9 @@ import {
   aiDjCommentaryInputSchema,
   type AiDjCommentaryOutput,
 } from '../../../../lib/ai-dj/commentary-schema';
-import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
+import { getSpotifySession } from '../../../../lib/auth/session';
+import { decryptSecret } from '../../../../lib/auth/token-encryption';
+import { prisma } from '../../../../lib/db/prisma';
 import { createOpenAiDjCommentary, OpenAiCommentaryError } from '../../../../lib/llm/openai';
 
 export const runtime = 'nodejs';
@@ -77,6 +79,12 @@ export async function POST(request: NextRequest) {
     return jsonError('INVALID_INPUT', 'Invalid AI DJ commentary input.', 400);
   }
 
+  const session = getSpotifySession(request);
+
+  if (!session) {
+    return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
   const cache = getCommentaryCache();
   const cacheKey = getCacheKey(input.data);
   const cachedCommentary = cache.get(cacheKey);
@@ -86,31 +94,28 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const env = getServerEnv();
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { openaiApiKey: true },
+    });
 
-    if (env.LLM_PROVIDER !== 'openai') {
+    if (!user?.openaiApiKey) {
       return jsonError(
-        'LLM_PROVIDER_UNSUPPORTED',
-        'Only OpenAI is supported for commentary MVP.',
-        501,
+        'OPENAI_API_KEY_MISSING',
+        'OpenAI API key not configured. Please go to Settings.',
+        402,
       );
     }
 
-    const commentary = await createOpenAiDjCommentary(env.OPENAI_API_KEY, input.data);
+    const apiKey = decryptSecret(user.openaiApiKey);
+
+    const commentary = await createOpenAiDjCommentary(apiKey, input.data);
 
     cache.set(cacheKey, commentary);
     pruneCommentaryCache(cache);
 
     return NextResponse.json(commentary);
   } catch (error) {
-    if (error instanceof EnvValidationError) {
-      return jsonError(
-        'ENV_VALIDATION_FAILED',
-        'Missing or invalid server environment variables.',
-        500,
-      );
-    }
-
     if (error instanceof OpenAiCommentaryError) {
       return jsonError(error.code, error.message, error.status);
     }

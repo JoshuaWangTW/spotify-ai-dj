@@ -4,14 +4,14 @@ import { NextRequest } from 'next/server';
 
 import { getSpotifySession, rememberSpotifySession } from './session';
 import {
+  decryptSecret,
   decryptSpotifyRefreshToken,
   encryptSpotifyRefreshToken,
   TokenEncryptionError,
 } from './token-encryption';
-import { EnvValidationError, getServerEnv } from '../config/env';
 import { isPrismaError } from '../db/errors';
 import { prisma } from '../db/prisma';
-import { refreshSpotifyAccessToken, SpotifyTokenExchangeError } from '../spotify';
+import { refreshSpotifyAccessToken, SpotifyTokenExchangeError, type SpotifyAppCredentials } from '../spotify';
 
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
 
@@ -27,21 +27,31 @@ export class SpotifyAccessTokenError extends Error {
   }
 }
 
-async function getStoredRefreshToken(userId: string): Promise<string | null> {
+async function getStoredCredentials(userId: string): Promise<{
+  refreshToken: string | null;
+  clientId: string | null;
+  clientSecret: string | null;
+}> {
   const user = await prisma.user.findUnique({
     select: {
       spotifyRefreshToken: true,
+      spotifyClientId: true,
+      spotifyClientSecret: true,
     },
-    where: {
-      id: userId,
-    },
+    where: { id: userId },
   });
 
   if (!user) {
-    return null;
+    return { refreshToken: null, clientId: null, clientSecret: null };
   }
 
-  return decryptSpotifyRefreshToken(user.spotifyRefreshToken);
+  return {
+    refreshToken: user.spotifyRefreshToken
+      ? decryptSpotifyRefreshToken(user.spotifyRefreshToken)
+      : null,
+    clientId: user.spotifyClientId ? decryptSecret(user.spotifyClientId) : null,
+    clientSecret: user.spotifyClientSecret ? decryptSecret(user.spotifyClientSecret) : null,
+  };
 }
 
 async function persistRotatedRefreshToken(userId: string, refreshToken?: string): Promise<void> {
@@ -53,9 +63,7 @@ async function persistRotatedRefreshToken(userId: string, refreshToken?: string)
     data: {
       spotifyRefreshToken: encryptSpotifyRefreshToken(refreshToken),
     },
-    where: {
-      id: userId,
-    },
+    where: { id: userId },
   });
 }
 
@@ -76,9 +84,18 @@ export async function getValidSpotifyAccessToken(request: NextRequest): Promise<
 
   if (!session.spotify || session.spotify.expiresAt <= Date.now() + TOKEN_REFRESH_SKEW_MS) {
     try {
-      const env = getServerEnv();
+      const stored = await getStoredCredentials(session.user.id);
+
+      if (!stored.clientId || !stored.clientSecret) {
+        throw new SpotifyAccessTokenError(
+          'SPOTIFY_CREDENTIALS_MISSING',
+          'Spotify credentials not configured.',
+          402,
+        );
+      }
+
       const refreshToken =
-        session.spotify?.refreshToken ?? (await getStoredRefreshToken(session.user.id));
+        session.spotify?.refreshToken ?? stored.refreshToken;
 
       if (!refreshToken) {
         throw new SpotifyAccessTokenError(
@@ -88,7 +105,13 @@ export async function getValidSpotifyAccessToken(request: NextRequest): Promise<
         );
       }
 
-      const refreshedToken = await refreshSpotifyAccessToken(env, refreshToken);
+      const creds: SpotifyAppCredentials = {
+        clientId: stored.clientId,
+        clientSecret: stored.clientSecret,
+        redirectUri: process.env.SPOTIFY_REDIRECT_URI ?? '',
+      };
+
+      const refreshedToken = await refreshSpotifyAccessToken(creds, refreshToken);
 
       await persistRotatedRefreshToken(session.user.id, refreshedToken.refreshToken);
 
@@ -103,14 +126,6 @@ export async function getValidSpotifyAccessToken(request: NextRequest): Promise<
     } catch (error) {
       if (error instanceof SpotifyAccessTokenError) {
         throw error;
-      }
-
-      if (error instanceof EnvValidationError) {
-        throw new SpotifyAccessTokenError(
-          'ENV_VALIDATION_FAILED',
-          'Missing or invalid server environment variables.',
-          500,
-        );
       }
 
       if (error instanceof SpotifyTokenExchangeError) {

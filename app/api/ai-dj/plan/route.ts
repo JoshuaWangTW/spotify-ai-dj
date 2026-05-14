@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { aiDjPlanInputSchema } from '../../../../lib/ai-dj/plan-schema';
 import { getSpotifySession } from '../../../../lib/auth/session';
-import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
+import { decryptSecret } from '../../../../lib/auth/token-encryption';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
 import { createOpenAiDjPlan, OpenAiPlanError } from '../../../../lib/llm/openai';
@@ -36,40 +36,42 @@ export async function POST(request: NextRequest) {
     return jsonError('INVALID_INPUT', 'Invalid AI DJ plan input.', 400);
   }
 
+  const session = getSpotifySession(request);
+
+  if (!session) {
+    return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
   try {
-    const env = getServerEnv();
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { openaiApiKey: true },
+    });
 
-    if (env.LLM_PROVIDER !== 'openai') {
-      return jsonError('LLM_PROVIDER_UNSUPPORTED', 'Only OpenAI is supported for plan MVP.', 501);
-    }
-
-    const session = getSpotifySession(request);
-    const musicProfile =
-      session && session.user.id !== 'mock-spotify-user'
-        ? await prisma.musicProfile.findUnique({
-            where: {
-              userId: session.user.id,
-            },
-            select: {
-              avoidSummary: true,
-              classicalLevel: true,
-              jazzLevel: true,
-              tasteSummary: true,
-            },
-          })
-        : null;
-    const plan = await createOpenAiDjPlan(env.OPENAI_API_KEY, input.data, musicProfile);
-
-    return NextResponse.json(plan);
-  } catch (error) {
-    if (error instanceof EnvValidationError) {
+    if (!user?.openaiApiKey) {
       return jsonError(
-        'ENV_VALIDATION_FAILED',
-        'Missing or invalid server environment variables.',
-        500,
+        'OPENAI_API_KEY_MISSING',
+        'OpenAI API key not configured. Please go to Settings.',
+        402,
       );
     }
 
+    const apiKey = decryptSecret(user.openaiApiKey);
+
+    const musicProfile = await prisma.musicProfile.findUnique({
+      where: { userId: session.user.id },
+      select: {
+        avoidSummary: true,
+        classicalLevel: true,
+        jazzLevel: true,
+        tasteSummary: true,
+      },
+    });
+
+    const plan = await createOpenAiDjPlan(apiKey, input.data, musicProfile);
+
+    return NextResponse.json(plan);
+  } catch (error) {
     if (error instanceof OpenAiPlanError) {
       return jsonError(error.code, error.message, error.status);
     }

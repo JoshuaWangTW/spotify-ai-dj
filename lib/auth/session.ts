@@ -197,16 +197,16 @@ export function validateOAuthState(request: NextRequest, receivedState: string):
 
 export function createSpotifySession(
   response: NextResponse,
-  token: {
+  user: {
+    displayName?: string | null;
+    id: string;
+  },
+  token?: {
     accessToken: string;
     refreshToken?: string;
     tokenType: string;
     scope: string;
     expiresIn: number;
-  },
-  user?: {
-    displayName?: string | null;
-    id: string;
   },
 ): SpotifyTokenSession {
   const sessionId = generateOpaqueToken();
@@ -214,16 +214,18 @@ export function createSpotifySession(
   const session: SpotifyTokenSession = {
     id: sessionId,
     user: {
-      id: user?.id ?? 'mock-spotify-user',
-      displayName: user?.displayName ?? 'Spotify user',
+      id: user.id,
+      displayName: user.displayName ?? 'Spotify user',
     },
-    spotify: {
-      accessToken: token.accessToken,
-      refreshToken: token.refreshToken,
-      tokenType: token.tokenType,
-      scope: token.scope,
-      expiresAt: now + token.expiresIn * 1000,
-    },
+    spotify: token
+      ? {
+          accessToken: token.accessToken,
+          refreshToken: token.refreshToken,
+          tokenType: token.tokenType,
+          scope: token.scope,
+          expiresAt: now + token.expiresIn * 1000,
+        }
+      : undefined,
     createdAt: now,
   };
 

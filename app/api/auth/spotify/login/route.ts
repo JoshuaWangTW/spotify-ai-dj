@@ -1,54 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 
-import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
-import { generateOpaqueToken, setOAuthStateCookie } from '../../../../../lib/auth/session';
-import { buildSpotifyAuthorizeUrl } from '../../../../../lib/spotify';
+import { getSpotifySession, generateOpaqueToken, setOAuthStateCookie } from '../../../../../lib/auth/session';
+import { decryptSecret } from '../../../../../lib/auth/token-encryption';
+import { prisma } from '../../../../../lib/db/prisma';
+import { buildSpotifyAuthorizeUrl, type SpotifyAppCredentials } from '../../../../../lib/spotify';
 
 export const runtime = 'nodejs';
 
-const loginQuerySchema = z.object({}).strict();
-
-function envValidationResponse() {
-  return NextResponse.json(
-    {
-      error: {
-        code: 'ENV_VALIDATION_FAILED',
-        message: 'Missing or invalid server environment variables.',
-      },
-    },
-    { status: 500 },
-  );
-}
-
-export function GET(request: NextRequest) {
-  const query = loginQuerySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
-
-  if (!query.success) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'INVALID_QUERY',
-          message: 'This endpoint does not accept query parameters.',
-        },
-      },
-      { status: 400 },
-    );
+export async function GET(request: NextRequest) {
+  const session = getSpotifySession(request);
+  if (!session) {
+    return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
-  try {
-    const env = getServerEnv();
-    const state = generateOpaqueToken();
-    const response = NextResponse.redirect(buildSpotifyAuthorizeUrl(env, state));
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { spotifyClientId: true },
+  });
 
-    setOAuthStateCookie(response, state);
-
-    return response;
-  } catch (error) {
-    if (error instanceof EnvValidationError) {
-      return envValidationResponse();
-    }
-
-    throw error;
+  if (!user?.spotifyClientId) {
+    return NextResponse.redirect(new URL('/settings?error=missing_spotify_credentials', request.url));
   }
+
+  const clientId = decryptSecret(user.spotifyClientId);
+  const redirectUri = process.env.SPOTIFY_REDIRECT_URI ?? '';
+
+  const creds: SpotifyAppCredentials = { clientId, clientSecret: '', redirectUri };
+  const state = generateOpaqueToken();
+  const response = NextResponse.redirect(buildSpotifyAuthorizeUrl(creds, state));
+  setOAuthStateCookie(response, state);
+
+  return response;
 }

@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
 
   const session = getSpotifySession(request);
 
-  if (!session || session.user.id === 'mock-spotify-user') {
-    return jsonError('SPOTIFY_SESSION_REQUIRED', 'Spotify login is required.', 401);
+  if (!session) {
+    return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
   }
 
   const context = JSON.stringify({

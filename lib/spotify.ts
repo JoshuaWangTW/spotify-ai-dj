@@ -3,7 +3,12 @@ import 'server-only';
 import { z } from 'zod';
 
 import type { SpotifyTrackCandidate } from './spotify-types';
-import type { ServerEnv } from './config/env';
+
+export type SpotifyAppCredentials = {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+};
 
 const SPOTIFY_AUTHORIZE_URL = 'https://accounts.spotify.com/authorize';
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
@@ -96,19 +101,19 @@ export class SpotifyWebApiError extends Error {
   }
 }
 
-export function buildSpotifyAuthorizeUrl(env: ServerEnv, state: string): string {
+export function buildSpotifyAuthorizeUrl(creds: SpotifyAppCredentials, state: string): string {
   const authorizeUrl = new URL(SPOTIFY_AUTHORIZE_URL);
   authorizeUrl.searchParams.set('response_type', 'code');
-  authorizeUrl.searchParams.set('client_id', env.SPOTIFY_CLIENT_ID);
+  authorizeUrl.searchParams.set('client_id', creds.clientId);
   authorizeUrl.searchParams.set('scope', SPOTIFY_MVP_SCOPES.join(' '));
-  authorizeUrl.searchParams.set('redirect_uri', env.SPOTIFY_REDIRECT_URI);
+  authorizeUrl.searchParams.set('redirect_uri', creds.redirectUri);
   authorizeUrl.searchParams.set('state', state);
 
   return authorizeUrl.toString();
 }
 
 export async function exchangeSpotifyAuthorizationCode(
-  env: ServerEnv,
+  creds: SpotifyAppCredentials,
   code: string,
 ): Promise<SpotifyTokenResponse> {
   const abortController = new AbortController();
@@ -119,11 +124,11 @@ export async function exchangeSpotifyAuthorizationCode(
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: env.SPOTIFY_REDIRECT_URI,
+        redirect_uri: creds.redirectUri,
       }),
       headers: {
         Authorization: `Basic ${Buffer.from(
-          `${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`,
+          `${creds.clientId}:${creds.clientSecret}`,
         ).toString('base64')}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
@@ -165,7 +170,7 @@ export async function exchangeSpotifyAuthorizationCode(
 }
 
 export async function refreshSpotifyAccessToken(
-  env: ServerEnv,
+  creds: SpotifyAppCredentials,
   refreshToken: string,
 ): Promise<SpotifyTokenResponse> {
   const abortController = new AbortController();
@@ -179,7 +184,7 @@ export async function refreshSpotifyAccessToken(
       }),
       headers: {
         Authorization: `Basic ${Buffer.from(
-          `${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`,
+          `${creds.clientId}:${creds.clientSecret}`,
         ).toString('base64')}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
