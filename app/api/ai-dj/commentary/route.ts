@@ -5,8 +5,7 @@ import {
   type AiDjCommentaryOutput,
 } from '../../../../lib/ai-dj/commentary-schema';
 import { getSpotifySession } from '../../../../lib/auth/session';
-import { decryptSecret } from '../../../../lib/auth/token-encryption';
-import { prisma } from '../../../../lib/db/prisma';
+import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { createOpenAiDjCommentary, OpenAiCommentaryError } from '../../../../lib/llm/openai';
 
 export const runtime = 'nodejs';
@@ -94,22 +93,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { openaiApiKey: true },
-    });
-
-    if (!user?.openaiApiKey) {
-      return jsonError(
-        'OPENAI_API_KEY_MISSING',
-        'OpenAI API key not configured. Please go to Settings.',
-        402,
-      );
-    }
-
-    const apiKey = decryptSecret(user.openaiApiKey);
-
-    const commentary = await createOpenAiDjCommentary(apiKey, input.data);
+    const env = getServerEnv();
+    const commentary = await createOpenAiDjCommentary(env.OPENAI_API_KEY, input.data);
 
     cache.set(cacheKey, commentary);
     pruneCommentaryCache(cache);
@@ -118,6 +103,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof OpenAiCommentaryError) {
       return jsonError(error.code, error.message, error.status);
+    }
+
+    if (error instanceof EnvValidationError) {
+      return jsonError(
+        'OPENAI_API_KEY_MISSING',
+        'OpenAI API key is not configured on the server.',
+        500,
+      );
     }
 
     throw error;

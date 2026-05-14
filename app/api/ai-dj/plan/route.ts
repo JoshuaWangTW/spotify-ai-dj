@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { aiDjPlanInputSchema } from '../../../../lib/ai-dj/plan-schema';
 import { getSpotifySession } from '../../../../lib/auth/session';
-import { decryptSecret } from '../../../../lib/auth/token-encryption';
+import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
 import { createOpenAiDjPlan, OpenAiPlanError } from '../../../../lib/llm/openai';
@@ -43,20 +43,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { openaiApiKey: true },
-    });
-
-    if (!user?.openaiApiKey) {
-      return jsonError(
-        'OPENAI_API_KEY_MISSING',
-        'OpenAI API key not configured. Please go to Settings.',
-        402,
-      );
-    }
-
-    const apiKey = decryptSecret(user.openaiApiKey);
+    const env = getServerEnv();
 
     const musicProfile = await prisma.musicProfile.findUnique({
       where: { userId: session.user.id },
@@ -68,7 +55,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const plan = await createOpenAiDjPlan(apiKey, input.data, musicProfile);
+    const plan = await createOpenAiDjPlan(env.OPENAI_API_KEY, input.data, musicProfile);
 
     return NextResponse.json(plan);
   } catch (error) {
@@ -78,6 +65,14 @@ export async function POST(request: NextRequest) {
 
     if (isPrismaError(error)) {
       return jsonError('DATABASE_REQUEST_FAILED', 'Database request failed.', 500);
+    }
+
+    if (error instanceof EnvValidationError) {
+      return jsonError(
+        'OPENAI_API_KEY_MISSING',
+        'OpenAI API key is not configured on the server.',
+        500,
+      );
     }
 
     throw error;

@@ -9,9 +9,9 @@ import {
   validateOAuthState,
 } from '../../../../../lib/auth/session';
 import {
-  decryptSecret,
   encryptSpotifyRefreshToken,
 } from '../../../../../lib/auth/token-encryption';
+import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
 import {
   exchangeSpotifyAuthorizationCode,
   fetchSpotifyUserProfile,
@@ -84,28 +84,13 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { spotifyClientId: true, spotifyClientSecret: true },
-  });
-
-  if (!dbUser?.spotifyClientId || !dbUser?.spotifyClientSecret) {
-    const response = jsonError(
-      'SPOTIFY_CREDENTIALS_MISSING',
-      'Spotify credentials not configured.',
-      400,
-    );
-    clearOAuthStateCookie(response);
-    return response;
-  }
-
-  const clientId = decryptSecret(dbUser.spotifyClientId);
-  const clientSecret = decryptSecret(dbUser.spotifyClientSecret);
-  const redirectUri = process.env.SPOTIFY_REDIRECT_URI ?? '';
-
-  const creds: SpotifyAppCredentials = { clientId, clientSecret, redirectUri };
-
   try {
+    const env = getServerEnv();
+    const creds: SpotifyAppCredentials = {
+      clientId: env.SPOTIFY_CLIENT_ID,
+      clientSecret: env.SPOTIFY_CLIENT_SECRET,
+      redirectUri: env.SPOTIFY_REDIRECT_URI,
+    };
     const token = await exchangeSpotifyAuthorizationCode(creds, query.data.code);
 
     if (!token.refreshToken) {
@@ -156,6 +141,16 @@ export async function GET(request: NextRequest) {
 
     if (isPrismaError(error)) {
       const response = jsonError('DATABASE_REQUEST_FAILED', 'Database request failed.', 500);
+      clearOAuthStateCookie(response);
+      return response;
+    }
+
+    if (error instanceof EnvValidationError) {
+      const response = jsonError(
+        'SERVER_CONFIG_MISSING',
+        'Required server configuration is missing.',
+        500,
+      );
       clearOAuthStateCookie(response);
       return response;
     }
