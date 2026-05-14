@@ -27,28 +27,28 @@ export default function QueueList({
   tracks,
 }: QueueListProps) {
   return (
-    <section className="min-h-[620px] rounded-lg border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
+    <section className="glass-panel min-h-[620px] rounded-lg p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-white">Queue / Recommendations</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">
+          <h2 className="text-xl font-semibold text-slate-50">Queue / Recommendations</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
             AI plan 的 Spotify 候選曲與推薦理由。
           </p>
         </div>
-        <span className="rounded-md bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-300">
+        <span className="rounded-md border border-sky-200/20 bg-sky-200/10 px-2.5 py-1 text-xs font-medium text-sky-100">
           {tracks.length} tracks
         </span>
       </div>
 
       <div className="mt-6 space-y-3">
         {isLoading ? (
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-400">
+          <div className="glass-card rounded-lg p-4 text-sm text-slate-400">
             正在搜尋 Spotify 候選曲...
           </div>
         ) : null}
 
         {!isLoading && tracks.length === 0 ? (
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm leading-6 text-zinc-400">
+          <div className="glass-card rounded-lg p-4 text-sm leading-6 text-slate-400">
             右側會顯示 Spotify Search 的候選曲。請先在左側送出需求。
           </div>
         ) : null}
@@ -61,41 +61,38 @@ export default function QueueList({
             reasoningIndex >= 0 ? plan?.queueReasoning[reasoningIndex] : undefined;
 
           return (
-            <article
-              key={`${track.spotifyUri}-${index}`}
-              className="rounded-lg border border-zinc-800 bg-zinc-950 p-4"
-            >
+            <article key={`${track.spotifyUri}-${index}`} className="glass-card rounded-lg p-4">
               <div className="flex items-start gap-3">
                 {track.albumImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     alt={`${track.album} album art`}
-                    className="h-16 w-16 rounded-md object-cover"
+                    className="h-16 w-16 rounded-md border border-white/10 object-cover"
                     src={track.albumImageUrl}
                   />
                 ) : (
-                  <div className="h-16 w-16 rounded-md bg-zinc-800" />
+                  <div className="h-16 w-16 rounded-md border border-white/10 bg-slate-800/50" />
                 )}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-white">{track.title}</p>
-                      <p className="mt-1 truncate text-sm text-zinc-400">{track.artist}</p>
-                      <p className="truncate text-sm text-zinc-500">{track.album}</p>
+                      <p className="truncate font-semibold text-slate-50">{track.title}</p>
+                      <p className="mt-1 truncate text-sm text-slate-400">{track.artist}</p>
+                      <p className="truncate text-sm text-slate-500">{track.album}</p>
                     </div>
-                    <span className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-400">
+                    <span className="rounded-md border border-slate-500/30 bg-slate-900/20 px-2 py-1 text-xs text-slate-400">
                       {track.explicit ? 'Explicit' : 'Clean'}
                     </span>
                   </div>
 
-                  <p className="mt-3 border-l-2 border-emerald-400 pl-3 text-sm leading-6 text-zinc-300">
+                  <p className="mt-3 border-l-2 border-sky-200/70 pl-3 text-sm leading-6 text-slate-300">
                     {queueReasoning ?? `搜尋策略：${track.query}`}
                   </p>
 
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                     <button
-                      className="rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="aqua-button rounded-md px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={status === 'adding' || status === 'added'}
                       onClick={() => onAddToQueue(track)}
                       type="button"
@@ -107,7 +104,7 @@ export default function QueueList({
                           : '加入 queue'}
                     </button>
                     <a
-                      className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
+                      className="aqua-link text-sm font-medium"
                       href={track.spotifyUrl}
                       rel="noreferrer"
                       target="_blank"
@@ -136,7 +133,7 @@ export default function QueueList({
                       return (
                         <button
                           key={feedbackType}
-                          className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:border-emerald-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          className="glass-control rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-sky-200/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                           disabled={feedbackStatus === 'saving' || feedbackStatus === 'saved'}
                           onClick={() =>
                             onFeedback(

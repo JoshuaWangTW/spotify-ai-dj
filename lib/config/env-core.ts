@@ -14,10 +14,10 @@ const serverEnvSchema = z
   .object({
     NEXT_PUBLIC_APP_URL: z.string().url(),
     DATABASE_URL: z.string().min(1),
-    SPOTIFY_CLIENT_ID: optionalSecretSchema,
-    SPOTIFY_CLIENT_SECRET: optionalSecretSchema,
+    SPOTIFY_CLIENT_ID: z.string().min(1),
+    SPOTIFY_CLIENT_SECRET: z.string().min(1),
     SPOTIFY_REDIRECT_URI: z.string().url(),
-    OPENAI_API_KEY: optionalSecretSchema,
+    OPENAI_API_KEY: z.string().min(1),
     ANTHROPIC_API_KEY: optionalSecretSchema,
     LLM_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
     NEXTAUTH_SECRET: z.string().min(1),

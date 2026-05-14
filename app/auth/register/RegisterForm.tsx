@@ -55,14 +55,14 @@ export default function RegisterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+    <form onSubmit={handleSubmit} className="glass-panel space-y-4 rounded-lg p-6">
       {error && (
-        <div className="rounded-md bg-red-950 border border-red-800 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-md border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
           {error}
         </div>
       )}
       <div className="space-y-1">
-        <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
+        <label htmlFor="email" className="block text-sm font-medium text-slate-300">
           Email
         </label>
         <input
@@ -71,26 +71,26 @@ export default function RegisterForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="glass-control w-full rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-200/70 focus:outline-none"
           placeholder="you@example.com"
         />
       </div>
       <div className="space-y-1">
-        <label htmlFor="displayName" className="block text-sm font-medium text-zinc-300">
-          顯示名稱 <span className="text-zinc-500">（選填）</span>
+        <label htmlFor="displayName" className="block text-sm font-medium text-slate-300">
+          顯示名稱 <span className="text-slate-500">（選填）</span>
         </label>
         <input
           id="displayName"
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="glass-control w-full rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-200/70 focus:outline-none"
           placeholder="你的名字"
         />
       </div>
       <div className="space-y-1">
-        <label htmlFor="password" className="block text-sm font-medium text-zinc-300">
-          密碼 <span className="text-zinc-500">（至少 8 個字元）</span>
+        <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+          密碼 <span className="text-slate-500">（至少 8 個字元）</span>
         </label>
         <input
           id="password"
@@ -99,12 +99,12 @@ export default function RegisterForm() {
           minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="glass-control w-full rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-200/70 focus:outline-none"
           placeholder="••••••••"
         />
       </div>
       <div className="space-y-1">
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-zinc-300">
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300">
           確認密碼
         </label>
         <input
@@ -113,14 +113,14 @@ export default function RegisterForm() {
           required
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="glass-control w-full rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-200/70 focus:outline-none"
           placeholder="••••••••"
         />
       </div>
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="aqua-button w-full rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? '註冊中…' : '建立帳號'}
       </button>

@@ -3,25 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
-  --bg-0: #f4fafb;
-  --bg-1: #eaf4f7;
-  --bg-2: #dee8ed;
-  --accent-300: #c3eaf2;
-  --accent-400: #aee0ec;
-  --accent-500: #92d2e2;
-  --text-strong: #2b3a42;
-  --text-body: #3f525d;
-  --text-soft: #5e717c;
-  --line-soft: rgba(58, 88, 104, 0.14);
-  --line-mid: rgba(58, 88, 104, 0.22);
-  --glass-fill-2: rgba(255, 255, 255, 0.24);
-  --glass-fill-3: rgba(255, 255, 255, 0.28);
-  --glass-stroke-1: rgba(255, 255, 255, 0.36);
-  --glass-stroke-2: rgba(255, 255, 255, 0.5);
-  --shadow-glass:
-    0 8px 20px rgba(52, 79, 92, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color-scheme: dark;
 }
 
 html {
@@ -31,8 +13,11 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 55%, var(--bg-2) 100%);
-  color: var(--text-strong);
+  background:
+    radial-gradient(circle at 18% 8%, rgba(125, 211, 252, 0.22), transparent 34rem),
+    radial-gradient(circle at 78% 4%, rgba(148, 163, 184, 0.18), transparent 30rem),
+    linear-gradient(145deg, #071014 0%, #0d171b 44%, #111315 100%);
+  color: #f4fbff;
   font-family:
     Inter,
     ui-sans-serif,
@@ -54,93 +39,130 @@ textarea {
 }
 
 ::selection {
-  background: rgba(146, 210, 226, 0.36);
+  background: rgba(125, 211, 252, 0.32);
 }
 
-@layer components {
-  .glass-panel {
-    border: 1px solid var(--glass-stroke-1);
-    background: var(--glass-fill-2);
-    box-shadow: var(--shadow-glass);
-    backdrop-filter: blur(14px);
-  }
-
-  .glass-card {
-    border: 1px solid var(--glass-stroke-1);
-    background: var(--glass-fill-3);
-    box-shadow: var(--shadow-glass);
-    backdrop-filter: blur(14px);
-  }
-
-  .liquid-pill {
-    border: 1px solid var(--line-soft);
-    background: rgba(255, 255, 255, 0.42);
-    color: var(--text-body);
-  }
-
-  .liquid-control {
-    border: 1px solid var(--line-soft);
-    background: rgba(255, 255, 255, 0.45);
-    color: var(--text-body);
-    box-shadow: 0 4px 12px rgba(52, 79, 92, 0.1);
-  }
-
-  .wave-dance {
-    height: 48px;
-    width: 100%;
-    border-radius: 16px;
-    background:
-      radial-gradient(circle at 35% 50%, rgba(146, 210, 226, 0.5), transparent 45%),
-      linear-gradient(90deg, rgba(195, 234, 242, 0.2), rgba(146, 210, 226, 0.35), rgba(195, 234, 242, 0.2));
-    position: relative;
-    overflow: hidden;
-  }
-
-  .wave-dance::before {
-    content: '';
-    position: absolute;
-    inset: 8px 0;
-    background: repeating-linear-gradient(
-      90deg,
-      transparent 0 4px,
-      rgba(146, 210, 226, 0.85) 4px 7px
-    );
-    mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
-    animation: wave-bars 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  }
-
-  .wave-dance::after {
-    content: '';
-    position: absolute;
-    left: -20%;
-    top: 16px;
-    height: 18px;
-    width: 140%;
-    border-radius: 999px;
-    border-top: 2px solid rgba(146, 210, 226, 0.95);
-    transform: translateX(0);
-    animation: wave-ribbon 1.2s ease-in-out infinite;
-  }
+.liquid-shell {
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes wave-bars {
+.liquid-shell::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  content: '';
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.08), transparent 32%),
+    radial-gradient(circle at 12% 88%, rgba(186, 230, 253, 0.14), transparent 26rem),
+    radial-gradient(circle at 88% 74%, rgba(100, 116, 139, 0.22), transparent 24rem);
+}
+
+.liquid-shell::after {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, black, transparent 86%);
+}
+
+.glass-panel {
+  border: 1px solid rgba(186, 230, 253, 0.2);
+  background:
+    linear-gradient(145deg, rgba(241, 245, 249, 0.12), rgba(15, 23, 42, 0.34)),
+    rgba(15, 23, 42, 0.46);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 20px 70px rgba(2, 8, 23, 0.34);
+  backdrop-filter: blur(24px) saturate(1.22);
+}
+
+.glass-card {
+  border: 1px solid rgba(186, 230, 253, 0.16);
+  background:
+    linear-gradient(160deg, rgba(248, 250, 252, 0.1), rgba(30, 41, 59, 0.24)),
+    rgba(15, 23, 42, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(18px) saturate(1.15);
+}
+
+.glass-control {
+  border: 1px solid rgba(186, 230, 253, 0.24);
+  background: rgba(15, 23, 42, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
+}
+
+.aqua-button {
+  background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 48%, #94a3b8 100%);
+  color: #071014;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.44),
+    0 12px 32px rgba(125, 211, 252, 0.18);
+}
+
+.aqua-button:hover {
+  filter: brightness(1.06);
+}
+
+.aqua-link {
+  color: #bae6fd;
+}
+
+.aqua-link:hover {
+  color: #e0f2fe;
+}
+
+.sound-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.sound-wave span {
+  width: 8px;
+  height: 34px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(226, 232, 240, 0.72), rgba(100, 116, 139, 0.34));
+  box-shadow: 0 0 22px rgba(203, 213, 225, 0.22);
+  animation: waveFloat 1.18s ease-in-out infinite;
+}
+
+.sound-wave span:nth-child(2) {
+  height: 54px;
+  animation-delay: -0.24s;
+}
+
+.sound-wave span:nth-child(3) {
+  height: 80px;
+  animation-delay: -0.42s;
+}
+
+.sound-wave span:nth-child(4) {
+  height: 48px;
+  animation-delay: -0.16s;
+}
+
+.sound-wave span:nth-child(5) {
+  height: 66px;
+  animation-delay: -0.34s;
+}
+
+@keyframes waveFloat {
   0%,
   100% {
-    transform: scaleY(0.7);
+    transform: translateY(8px) scaleY(0.62);
+    opacity: 0.42;
   }
-  50% {
-    transform: scaleY(1.05);
-  }
-}
 
-@keyframes wave-ribbon {
-  0% {
-    transform: translateX(0) translateY(0);
-  }
   50% {
-    transform: translateX(8%) translateY(-2px);
-  }
-  100% {
-    transform: translateX(0) translateY(0);
+    transform: translateY(-8px) scaleY(1.08);
+    opacity: 0.92;
   }
 }

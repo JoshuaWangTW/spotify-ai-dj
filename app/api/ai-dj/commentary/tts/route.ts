@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getSpotifySession } from '../../../../../lib/auth/session';
-import { decryptSecret } from '../../../../../lib/auth/token-encryption';
-import { prisma } from '../../../../../lib/db/prisma';
+import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
 
 export const runtime = 'nodejs';
 
@@ -41,16 +40,22 @@ export async function POST(request: NextRequest) {
     return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { openaiApiKey: true },
-  });
+  let apiKey: string;
 
-  if (!user?.openaiApiKey) {
-    return jsonError('OPENAI_API_KEY_MISSING', 'OpenAI API key not configured. Please go to Settings.', 402);
+  try {
+    const env = getServerEnv();
+    apiKey = env.OPENAI_API_KEY;
+  } catch (error) {
+    if (error instanceof EnvValidationError) {
+      return jsonError(
+        'OPENAI_API_KEY_MISSING',
+        'OpenAI API key is not configured on the server.',
+        500,
+      );
+    }
+    throw error;
   }
 
-  const apiKey = decryptSecret(user.openaiApiKey);
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), OPENAI_TTS_TIMEOUT_MS);
 

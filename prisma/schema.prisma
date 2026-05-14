@@ -11,9 +11,6 @@ model User {
   id                  String   @id @default(cuid())
   email               String?  @unique
   passwordHash        String?
-  spotifyClientId     String?
-  spotifyClientSecret String?
-  openaiApiKey        String?
   spotifyUserId       String?  @unique
   displayName         String?
   spotifyRefreshToken String?

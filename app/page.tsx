@@ -24,37 +24,33 @@ export default async function HomePage() {
   const sessionUser = await getSessionUser();
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+    <main className="liquid-shell min-h-screen px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
-        <header className="glass-panel flex flex-col gap-4 rounded-2xl p-5 md:flex-row md:items-end md:justify-between">
+        <header className="glass-panel flex flex-col gap-4 rounded-lg px-5 py-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-slate-600">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-200">
               Spotify AI DJ
             </p>
-            <h1 className="mt-3 max-w-3xl text-3xl font-semibold text-slate-700 md:text-4xl">
+            <h1 className="mt-3 max-w-3xl text-3xl font-semibold text-slate-50 md:text-4xl">
               Personal music companion for jazz, classical, and focused listening.
             </h1>
           </div>
-          <div className="glass-card flex flex-col gap-3 rounded-xl px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center">
-            {sessionUser && (
-              <span className="text-zinc-400">
-                {sessionUser.displayName}
-              </span>
-            )}
+          <div className="glass-card flex flex-col gap-3 rounded-lg px-4 py-3 text-sm text-slate-300 sm:flex-row sm:items-center">
+            {sessionUser && <span className="text-slate-300">{sessionUser.displayName}</span>}
             <a
               href="/settings"
-              className="liquid-pill rounded-md px-3 py-1.5 text-center text-sm transition hover:border-slate-400 hover:text-slate-700"
+              className="glass-control rounded-md px-3 py-1.5 text-center text-sm text-slate-300 transition hover:border-sky-200/60 hover:text-white"
             >
               設定
             </a>
             <a
               href="/api/auth/logout"
-              className="liquid-pill rounded-md px-3 py-1.5 text-center text-sm transition hover:border-slate-400 hover:text-slate-700"
+              className="glass-control rounded-md px-3 py-1.5 text-center text-sm text-slate-300 transition hover:border-sky-200/60 hover:text-white"
             >
               登出
             </a>
             <a
-              className="rounded-md bg-cyan-200 px-3 py-2 text-center text-sm font-semibold text-slate-700 transition hover:bg-cyan-100"
+              className="aqua-button rounded-md px-3 py-2 text-center text-sm font-semibold transition"
               href="/api/auth/spotify/login"
             >
               Connect Spotify

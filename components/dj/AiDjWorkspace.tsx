@@ -8,6 +8,8 @@ import ChatPanel from './ChatPanel';
 import NowPlaying from '../player/NowPlaying';
 import QueueList from '../queue/QueueList';
 
+type WorkspacePanel = 'chat' | 'player' | 'queue';
+
 type ApiError = {
   error?: {
     code?: string;
@@ -26,6 +28,7 @@ function getApiErrorMessage(body: unknown, fallback: string): string {
 }
 
 export default function AiDjWorkspace() {
+  const [activePanel, setActivePanel] = useState<WorkspacePanel>('chat');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [plan, setPlan] = useState<AiDjPlanOutput | null>(null);
@@ -82,9 +85,11 @@ export default function AiDjWorkspace() {
       }
 
       setTracks(searchBody.tracks);
+      setActivePanel('queue');
     } catch (error) {
       setTracks([]);
       setErrorMessage(error instanceof Error ? error.message : '產生推薦時發生錯誤。');
+      setActivePanel('chat');
     } finally {
       setIsLoading(false);
     }
@@ -148,28 +153,116 @@ export default function AiDjWorkspace() {
     }
   }
 
+  const panelTabs: Array<{
+    helper: string;
+    id: WorkspacePanel;
+    label: string;
+    meta: string;
+  }> = [
+    {
+      helper: (plan?.mode ?? selectedMode).replace(/_/g, ' '),
+      id: 'chat',
+      label: 'AI DJ',
+      meta: isLoading ? '產生中' : '規劃',
+    },
+    {
+      helper: 'Spotify Web Playback SDK',
+      id: 'player',
+      label: '播放器',
+      meta: '播放',
+    },
+    {
+      helper: tracks.length > 0 ? `${tracks.length} 首候選曲` : '等待搜尋結果',
+      id: 'queue',
+      label: '推薦清單',
+      meta: `${tracks.length}`,
+    },
+  ];
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(320px,1fr)_minmax(300px,0.9fr)_minmax(320px,1fr)]">
-      <ChatPanel
-        errorMessage={errorMessage}
-        isLoading={isLoading}
-        onModeChange={setSelectedMode}
-        onPromptChange={setPrompt}
-        onSubmit={() => void handleSubmit()}
-        plan={plan}
-        prompt={prompt}
-        selectedMode={selectedMode}
-      />
-      <NowPlaying />
-      <QueueList
-        feedbackStatusByKey={feedbackStatusByKey}
-        isLoading={isLoading}
-        onAddToQueue={(track) => void handleAddToQueue(track)}
-        onFeedback={(track, feedbackType) => void handleFeedback(track, feedbackType)}
-        plan={plan}
-        queueStatusByUri={queueStatusByUri}
-        tracks={tracks}
-      />
+    <div className="space-y-4">
+      <div className="glass-panel rounded-lg p-2">
+        <div
+          aria-label="AI DJ workspace panels"
+          className="grid gap-2 md:grid-cols-3"
+          role="tablist"
+        >
+          {panelTabs.map((tab) => {
+            const isActive = activePanel === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                aria-controls={`workspace-panel-${tab.id}`}
+                aria-selected={isActive}
+                className={`rounded-md border px-4 py-3 text-left transition ${
+                  isActive
+                    ? 'border-sky-200/70 bg-sky-200/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
+                    : 'border-slate-500/20 bg-slate-950/12 text-slate-300 hover:border-sky-200/50 hover:text-white'
+                }`}
+                id={`workspace-tab-${tab.id}`}
+                onClick={() => setActivePanel(tab.id)}
+                role="tab"
+                type="button"
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold">{tab.label}</span>
+                  <span className="rounded-md border border-white/10 bg-slate-950/24 px-2 py-0.5 text-xs text-slate-300">
+                    {tab.meta}
+                  </span>
+                </span>
+                <span className="mt-1 block truncate text-xs text-slate-500">{tab.helper}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="relative">
+        <div
+          aria-labelledby="workspace-tab-chat"
+          className={activePanel === 'chat' ? 'block' : 'hidden'}
+          id="workspace-panel-chat"
+          role="tabpanel"
+        >
+          <ChatPanel
+            errorMessage={errorMessage}
+            isLoading={isLoading}
+            onModeChange={setSelectedMode}
+            onPromptChange={setPrompt}
+            onSubmit={() => void handleSubmit()}
+            plan={plan}
+            prompt={prompt}
+            selectedMode={selectedMode}
+          />
+        </div>
+
+        <div
+          aria-labelledby="workspace-tab-player"
+          className={activePanel === 'player' ? 'block' : 'hidden'}
+          id="workspace-panel-player"
+          role="tabpanel"
+        >
+          <NowPlaying />
+        </div>
+
+        <div
+          aria-labelledby="workspace-tab-queue"
+          className={activePanel === 'queue' ? 'block' : 'hidden'}
+          id="workspace-panel-queue"
+          role="tabpanel"
+        >
+          <QueueList
+            feedbackStatusByKey={feedbackStatusByKey}
+            isLoading={isLoading}
+            onAddToQueue={(track) => void handleAddToQueue(track)}
+            onFeedback={(track, feedbackType) => void handleFeedback(track, feedbackType)}
+            plan={plan}
+            queueStatusByUri={queueStatusByUri}
+            tracks={tracks}
+          />
+        </div>
+      </div>
     </div>
   );
 }

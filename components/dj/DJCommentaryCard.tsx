@@ -119,12 +119,12 @@ export default function DJCommentaryCard({ artistName, mode, trackName }: DJComm
   }
 
   return (
-    <div className="mt-4 rounded-md border border-zinc-800 bg-zinc-900/70 p-3">
+    <div className="mt-4 rounded-md border border-sky-200/14 bg-slate-900/24 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-semibold text-zinc-100">DJ commentary</p>
+        <p className="text-sm font-semibold text-slate-100">DJ commentary</p>
         <div className="flex gap-2">
           <button
-            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="glass-control rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:border-sky-200/60 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isLoading}
             onClick={() => void loadCommentary('short')}
             type="button"
@@ -132,7 +132,7 @@ export default function DJCommentaryCard({ artistName, mode, trackName }: DJComm
             {commentary ? '重新產生' : '生成導聆'}
           </button>
           <button
-            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="glass-control rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:border-sky-200/60 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isLoading}
             onClick={() => void loadCommentary('deep')}
             type="button"
@@ -142,12 +142,12 @@ export default function DJCommentaryCard({ artistName, mode, trackName }: DJComm
         </div>
       </div>
 
-      {isLoading ? <p className="mt-3 text-sm text-zinc-400">正在產生導聆...</p> : null}
+      {isLoading ? <p className="mt-3 text-sm text-slate-400">正在產生導聆...</p> : null}
 
       {commentary ? (
-        <div className="mt-3 text-sm leading-6 text-zinc-300">
+        <div className="mt-3 text-sm leading-6 text-slate-300">
           <p>{commentary.commentary}</p>
-          <ul className="mt-3 space-y-1 text-zinc-400">
+          <ul className="mt-3 space-y-1 text-slate-400">
             {commentary.listeningPoints.map((point) => (
               <li key={point}>- {point}</li>
             ))}

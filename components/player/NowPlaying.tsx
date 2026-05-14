@@ -228,45 +228,55 @@ export default function NowPlaying() {
   }
 
   return (
-    <section className="glass-panel min-h-[620px] rounded-2xl p-5">
+    <section className="glass-panel min-h-[620px] rounded-lg p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-700">Now Playing</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Spotify Web Playback SDK player.</p>
+          <h2 className="text-xl font-semibold text-slate-50">Now Playing</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">Spotify Web Playback SDK player.</p>
         </div>
-        <span className="rounded-md bg-cyan-100 px-2.5 py-1 text-xs font-medium text-cyan-700">
+        <span className="rounded-md border border-sky-200/20 bg-sky-200/10 px-2.5 py-1 text-xs font-medium text-sky-100">
           {status === 'ready' ? 'Live' : 'Setup'}
         </span>
       </div>
 
       <div className="glass-card mt-6 rounded-lg p-5">
-        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-white/60">
+        <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-950/35">
           {track?.albumImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               alt={`${track.album} album art`}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover opacity-88"
               src={track.albumImageUrl}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#c3eaf2_0%,#aee0ec_36%,#f4fafb_36%,#eaf4f7_100%)] text-sm text-slate-500">
-              Spotify
+            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,rgba(186,230,253,0.28)_0%,rgba(100,116,139,0.22)_42%,rgba(15,23,42,0.46)_100%)] text-sm text-slate-300">
+              AI DJ
             </div>
           )}
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.26),transparent_34%),linear-gradient(to_bottom,transparent,rgba(15,23,42,0.42))]" />
+          {isPlaying ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-8 flex justify-center">
+              <div className="sound-wave rounded-full border border-white/10 bg-slate-900/28 px-5 py-4 backdrop-blur-md">
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+            </div>
+          ) : null}
         </div>
-
-        {isPlaying ? <div className="wave-dance mt-4" /> : null}
 
         <div className="mt-5 min-h-[120px]">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">正在播放</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-700">
+          <p className="mt-2 text-2xl font-semibold text-slate-50">
             {track?.title ?? '等待 Spotify 播放狀態'}
           </p>
-          <p className="mt-1 text-slate-500">{track?.artist ?? '尚未收到曲目資料'}</p>
+          <p className="mt-1 text-slate-400">{track?.artist ?? '尚未收到曲目資料'}</p>
           <p className="text-sm text-slate-500">{track?.album ?? 'Spotify Premium required'}</p>
           {spotifyTrackUrl ? (
             <a
-              className="mt-3 inline-flex text-xs font-medium text-cyan-700 hover:text-cyan-600"
+              className="aqua-link mt-3 inline-flex text-xs font-medium"
               href={spotifyTrackUrl}
               rel="noreferrer"
               target="_blank"
@@ -277,9 +287,9 @@ export default function NowPlaying() {
         </div>
 
         <div className="mt-6">
-          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className="h-2 overflow-hidden rounded-full bg-slate-700/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
             <div
-              className="h-full rounded-full bg-cyan-300"
+              className="h-full rounded-full bg-gradient-to-r from-sky-100 via-sky-300 to-slate-400"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -290,14 +300,14 @@ export default function NowPlaying() {
         </div>
 
         {errorMessage ? (
-          <div className="mt-5 rounded-md border border-amber-500/30 bg-amber-100/80 px-3 py-2 text-sm leading-6 text-amber-800">
+          <div className="mt-5 rounded-md border border-rose-300/30 bg-rose-400/10 px-3 py-2 text-sm leading-6 text-rose-100">
             {errorMessage}
           </div>
         ) : null}
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           <button
-            className="liquid-control rounded-md px-3 py-3 text-sm hover:border-cyan-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="glass-control rounded-md px-3 py-3 text-sm text-slate-100 hover:border-sky-200/60 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!playerRef.current}
             onClick={() => void runPlayerCommand('previous')}
             type="button"
@@ -305,7 +315,7 @@ export default function NowPlaying() {
             上一首
           </button>
           <button
-            className="rounded-md bg-cyan-200 px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="aqua-button rounded-md px-3 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!playerRef.current}
             onClick={() => void runPlayerCommand('toggle')}
             type="button"
@@ -313,7 +323,7 @@ export default function NowPlaying() {
             {isPlaying ? '暫停' : '播放'}
           </button>
           <button
-            className="liquid-control rounded-md px-3 py-3 text-sm hover:border-cyan-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="glass-control rounded-md px-3 py-3 text-sm text-slate-100 hover:border-sky-200/60 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!playerRef.current}
             onClick={() => void runPlayerCommand('next')}
             type="button"
@@ -323,7 +333,7 @@ export default function NowPlaying() {
         </div>
 
         {deviceId ? (
-          <p className="mt-4 break-all text-xs leading-5 text-slate-500">Device ID: {deviceId}</p>
+          <p className="mt-4 break-all text-xs leading-5 text-slate-600">Device ID: {deviceId}</p>
         ) : null}
       </div>
     </section>

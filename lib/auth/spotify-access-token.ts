@@ -4,11 +4,11 @@ import { NextRequest } from 'next/server';
 
 import { getSpotifySession, rememberSpotifySession } from './session';
 import {
-  decryptSecret,
   decryptSpotifyRefreshToken,
   encryptSpotifyRefreshToken,
   TokenEncryptionError,
 } from './token-encryption';
+import { EnvValidationError, getServerEnv } from '../config/env';
 import { isPrismaError } from '../db/errors';
 import { prisma } from '../db/prisma';
 import { refreshSpotifyAccessToken, SpotifyTokenExchangeError, type SpotifyAppCredentials } from '../spotify';
@@ -29,28 +29,22 @@ export class SpotifyAccessTokenError extends Error {
 
 async function getStoredCredentials(userId: string): Promise<{
   refreshToken: string | null;
-  clientId: string | null;
-  clientSecret: string | null;
 }> {
   const user = await prisma.user.findUnique({
     select: {
       spotifyRefreshToken: true,
-      spotifyClientId: true,
-      spotifyClientSecret: true,
     },
     where: { id: userId },
   });
 
   if (!user) {
-    return { refreshToken: null, clientId: null, clientSecret: null };
+    return { refreshToken: null };
   }
 
   return {
     refreshToken: user.spotifyRefreshToken
       ? decryptSpotifyRefreshToken(user.spotifyRefreshToken)
       : null,
-    clientId: user.spotifyClientId ? decryptSecret(user.spotifyClientId) : null,
-    clientSecret: user.spotifyClientSecret ? decryptSecret(user.spotifyClientSecret) : null,
   };
 }
 
@@ -85,14 +79,7 @@ export async function getValidSpotifyAccessToken(request: NextRequest): Promise<
   if (!session.spotify || session.spotify.expiresAt <= Date.now() + TOKEN_REFRESH_SKEW_MS) {
     try {
       const stored = await getStoredCredentials(session.user.id);
-
-      if (!stored.clientId || !stored.clientSecret) {
-        throw new SpotifyAccessTokenError(
-          'SPOTIFY_CREDENTIALS_MISSING',
-          'Spotify credentials not configured.',
-          402,
-        );
-      }
+      const env = getServerEnv();
 
       const refreshToken =
         session.spotify?.refreshToken ?? stored.refreshToken;
@@ -106,9 +93,9 @@ export async function getValidSpotifyAccessToken(request: NextRequest): Promise<
       }
 
       const creds: SpotifyAppCredentials = {
-        clientId: stored.clientId,
-        clientSecret: stored.clientSecret,
-        redirectUri: process.env.SPOTIFY_REDIRECT_URI ?? '',
+        clientId: env.SPOTIFY_CLIENT_ID,
+        clientSecret: env.SPOTIFY_CLIENT_SECRET,
+        redirectUri: env.SPOTIFY_REDIRECT_URI,
       };
 
       const refreshedToken = await refreshSpotifyAccessToken(creds, refreshToken);
@@ -149,6 +136,14 @@ export async function getValidSpotifyAccessToken(request: NextRequest): Promise<
           'SPOTIFY_REFRESH_TOKEN_INVALID',
           'Spotify login must be repeated.',
           401,
+        );
+      }
+
+      if (error instanceof EnvValidationError) {
+        throw new SpotifyAccessTokenError(
+          'SPOTIFY_CREDENTIALS_MISSING',
+          'Spotify server credentials are not configured.',
+          500,
         );
       }
 
