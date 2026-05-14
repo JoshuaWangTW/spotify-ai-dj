@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const feedback = await tx.trackFeedback.create({
         data: {
           context,
