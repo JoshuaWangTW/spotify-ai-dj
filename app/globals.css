@@ -3,7 +3,25 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --bg-0: #f4fafb;
+  --bg-1: #eaf4f7;
+  --bg-2: #dee8ed;
+  --accent-300: #c3eaf2;
+  --accent-400: #aee0ec;
+  --accent-500: #92d2e2;
+  --text-strong: #2b3a42;
+  --text-body: #3f525d;
+  --text-soft: #5e717c;
+  --line-soft: rgba(58, 88, 104, 0.14);
+  --line-mid: rgba(58, 88, 104, 0.22);
+  --glass-fill-2: rgba(255, 255, 255, 0.24);
+  --glass-fill-3: rgba(255, 255, 255, 0.28);
+  --glass-stroke-1: rgba(255, 255, 255, 0.36);
+  --glass-stroke-2: rgba(255, 255, 255, 0.5);
+  --shadow-glass:
+    0 8px 20px rgba(52, 79, 92, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 html {
@@ -13,8 +31,8 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: #09090b;
-  color: #fafafa;
+  background: linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 55%, var(--bg-2) 100%);
+  color: var(--text-strong);
   font-family:
     Inter,
     ui-sans-serif,
@@ -36,5 +54,86 @@ textarea {
 }
 
 ::selection {
-  background: rgba(16, 185, 129, 0.28);
+  background: rgba(146, 210, 226, 0.36);
+}
+
+@layer components {
+  .glass-panel {
+    border: 1px solid var(--glass-stroke-1);
+    background: var(--glass-fill-2);
+    box-shadow: var(--shadow-glass);
+    backdrop-filter: blur(14px);
+  }
+
+  .glass-card {
+    border: 1px solid var(--glass-stroke-1);
+    background: var(--glass-fill-3);
+    box-shadow: var(--shadow-glass);
+    backdrop-filter: blur(14px);
+  }
+
+  .liquid-pill {
+    border: 1px solid var(--line-soft);
+    background: rgba(255, 255, 255, 0.42);
+    color: var(--text-body);
+  }
+
+  .wave-dance {
+    height: 48px;
+    width: 100%;
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 35% 50%, rgba(146, 210, 226, 0.5), transparent 45%),
+      linear-gradient(90deg, rgba(195, 234, 242, 0.2), rgba(146, 210, 226, 0.35), rgba(195, 234, 242, 0.2));
+    position: relative;
+    overflow: hidden;
+  }
+
+  .wave-dance::before {
+    content: '';
+    position: absolute;
+    inset: 8px 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0 4px,
+      rgba(146, 210, 226, 0.85) 4px 7px
+    );
+    mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+    animation: wave-bars 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  .wave-dance::after {
+    content: '';
+    position: absolute;
+    left: -20%;
+    top: 16px;
+    height: 18px;
+    width: 140%;
+    border-radius: 999px;
+    border-top: 2px solid rgba(146, 210, 226, 0.95);
+    transform: translateX(0);
+    animation: wave-ribbon 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes wave-bars {
+  0%,
+  100% {
+    transform: scaleY(0.7);
+  }
+  50% {
+    transform: scaleY(1.05);
+  }
+}
+
+@keyframes wave-ribbon {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(8%) translateY(-2px);
+  }
+  100% {
+    transform: translateX(0) translateY(0);
+  }
 }

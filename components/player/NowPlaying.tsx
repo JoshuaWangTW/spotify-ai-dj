@@ -228,19 +228,19 @@ export default function NowPlaying() {
   }
 
   return (
-    <section className="min-h-[620px] rounded-lg border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
+    <section className="glass-panel min-h-[620px] rounded-2xl p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-white">Now Playing</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">Spotify Web Playback SDK player.</p>
+          <h2 className="text-xl font-semibold text-slate-700">Now Playing</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Spotify Web Playback SDK player.</p>
         </div>
-        <span className="rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300">
+        <span className="rounded-md bg-cyan-100 px-2.5 py-1 text-xs font-medium text-cyan-700">
           {status === 'ready' ? 'Live' : 'Setup'}
         </span>
       </div>
 
-      <div className="mt-6 rounded-lg border border-zinc-800 bg-zinc-950 p-5">
-        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-zinc-900">
+      <div className="glass-card mt-6 rounded-lg p-5">
+        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-white/60">
           {track?.albumImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -249,11 +249,13 @@ export default function NowPlaying() {
               src={track.albumImageUrl}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#10b981_0%,#0f766e_36%,#18181b_36%,#18181b_100%)] text-sm text-zinc-300">
+            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#c3eaf2_0%,#aee0ec_36%,#f4fafb_36%,#eaf4f7_100%)] text-sm text-slate-500">
               Spotify
             </div>
           )}
         </div>
+
+        {isPlaying ? <div className="wave-dance mt-4" /> : null}
 
         <div className="mt-5 min-h-[120px]">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">正在播放</p>

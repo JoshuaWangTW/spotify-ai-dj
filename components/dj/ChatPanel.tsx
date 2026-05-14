@@ -38,15 +38,15 @@ export default function ChatPanel({
   }
 
   return (
-    <section className="min-h-[620px] rounded-lg border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
+    <section className="glass-panel min-h-[620px] rounded-2xl p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-white">AI DJ Chat</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">
+          <h2 className="text-xl font-semibold text-slate-700">AI DJ Chat</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
             輸入情境後產生搜尋策略、播放邏輯與導聆方向。
           </p>
         </div>
-        <span className="rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300">
+        <span className="rounded-md bg-cyan-100 px-2.5 py-1 text-xs font-medium text-cyan-700">
           Live
         </span>
       </div>
@@ -57,8 +57,8 @@ export default function ChatPanel({
             key={mode.value}
             className={`rounded-md border px-3 py-2 text-sm ${
               selectedMode === mode.value
-                ? 'border-emerald-400 bg-emerald-400/10 text-white'
-                : 'border-zinc-700 text-zinc-300 hover:border-emerald-400 hover:text-white'
+                ? 'border-cyan-300 bg-cyan-100 text-slate-700'
+                : 'border-slate-300 text-slate-600 hover:border-cyan-300 hover:text-slate-700'
             }`}
             onClick={() => onModeChange(mode.value)}
             type="button"
@@ -69,13 +69,13 @@ export default function ChatPanel({
       </div>
 
       <div className="mt-6 space-y-3">
-        <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-4 text-zinc-200">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">user</p>
+        <div className="glass-card rounded-lg p-4 text-slate-600">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">user</p>
           <p className="mt-2 leading-7">{prompt || '我想聽爵士，想學一點，不要太硬。'}</p>
         </div>
 
-        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-zinc-100">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">assistant</p>
+        <div className="rounded-lg border border-cyan-200 bg-cyan-50/80 p-4 text-slate-700">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">assistant</p>
           <p className="mt-2 leading-7">
             {plan?.djIntro ??
               '送出需求後，我會產生 Spotify search queries，並把候選曲放到右側清單。'}
@@ -84,12 +84,12 @@ export default function ChatPanel({
       </div>
 
       {plan ? (
-        <div className="mt-5 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-          <p className="text-sm font-semibold text-white">Search strategy</p>
-          <div className="mt-3 space-y-2 text-sm leading-6 text-zinc-300">
+        <div className="glass-card mt-5 rounded-lg p-4">
+          <p className="text-sm font-semibold text-slate-700">Search strategy</p>
+          <div className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
             {plan.spotifySearchQueries.map((query, index) => (
               <p key={query}>
-                <span className="text-zinc-500">{index + 1}.</span> {query}
+                <span className="text-slate-400">{index + 1}.</span> {query}
               </p>
             ))}
           </div>
@@ -103,18 +103,18 @@ export default function ChatPanel({
       ) : null}
 
       <form
-        className="mt-6 flex flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-4"
+        className="glass-card mt-6 flex flex-col gap-3 rounded-lg p-4"
         onSubmit={handleSubmit}
       >
         <textarea
-          className="h-32 w-full resize-none rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-400"
+          className="h-32 w-full resize-none rounded-md border border-slate-300 bg-white/70 px-4 py-3 text-slate-700 outline-none placeholder:text-slate-400 focus:border-cyan-300"
           maxLength={500}
           onChange={(event) => onPromptChange(event.target.value)}
           placeholder="請輸入你的音樂需求..."
           value={prompt}
         />
         <button
-          className="rounded-md bg-emerald-500 px-5 py-3 text-base font-semibold text-zinc-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-cyan-200 px-5 py-3 text-base font-semibold text-slate-700 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isLoading || prompt.trim().length === 0}
           type="submit"
         >
