@@ -1,0 +1,105 @@
+'use client';
+
+import { useState } from 'react';
+
+import type { AiDjCommentaryOutput } from '../../lib/ai-dj/commentary-schema';
+
+type CommentaryDepth = 'short' | 'deep';
+
+type DJCommentaryCardProps = {
+  artistName: string;
+  mode: string;
+  trackName: string;
+};
+
+type ApiError = {
+  error?: {
+    message?: string;
+  };
+};
+
+function isApiError(body: unknown): body is ApiError {
+  return typeof body === 'object' && body !== null && 'error' in body;
+}
+
+export default function DJCommentaryCard({ artistName, mode, trackName }: DJCommentaryCardProps) {
+  const [commentary, setCommentary] = useState<AiDjCommentaryOutput | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function loadCommentary(depth: CommentaryDepth) {
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/ai-dj/commentary', {
+        body: JSON.stringify({
+          artistName,
+          depth,
+          mode,
+          trackName,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      });
+      const body = (await response.json()) as AiDjCommentaryOutput | ApiError;
+
+      if (isApiError(body)) {
+        throw new Error(body.error?.message ?? '導聆產生失敗。');
+      }
+
+      if (!response.ok) {
+        throw new Error('導聆產生失敗。');
+      }
+
+      setCommentary(body);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '導聆產生失敗。');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-md border border-zinc-800 bg-zinc-900/70 p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold text-zinc-100">DJ commentary</p>
+        <div className="flex gap-2">
+          <button
+            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isLoading}
+            onClick={() => void loadCommentary('short')}
+            type="button"
+          >
+            {commentary ? '重新產生' : '生成導聆'}
+          </button>
+          <button
+            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isLoading}
+            onClick={() => void loadCommentary('deep')}
+            type="button"
+          >
+            多講一點
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? <p className="mt-3 text-sm text-zinc-400">正在產生導聆...</p> : null}
+
+      {commentary ? (
+        <div className="mt-3 text-sm leading-6 text-zinc-300">
+          <p>{commentary.commentary}</p>
+          <ul className="mt-3 space-y-1 text-zinc-400">
+            {commentary.listeningPoints.map((point) => (
+              <li key={point}>- {point}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {errorMessage ? <p className="mt-3 text-sm text-amber-300">{errorMessage}</p> : null}
+    </div>
+  );
+}

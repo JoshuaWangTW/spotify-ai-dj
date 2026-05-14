@@ -47,3 +47,10 @@ PASS / PASS WITH FIXES / FAIL
 - AI output 是否用 zod 驗證。
 - Prisma schema 是否能 migration。
 - Zeabur deploy 是否需要額外 build command。
+
+## Zeabur Deployment
+- Project ID: 6a0487ca9638a008a2b5245b
+- Service ID (Next.js app): 6a04886e9638a008a2b52486
+- Environment ID: 6a0487cae5ed304c1d850b06
+- Region: Jojo (Singapore, Tencent Cloud)
+- Dashboard: https://zeabur.com/projects/6a0487ca9638a008a2b5245b

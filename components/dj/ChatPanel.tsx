@@ -1,19 +1,42 @@
-type Message = {
-  role: 'user' | 'assistant';
-  text: string;
-};
+'use client';
 
-const mockMessages: Message[] = [
-  { role: 'user', text: '我想聽爵士，想學一點，不要太硬。' },
-  {
-    role: 'assistant',
-    text: '先從旋律清楚的 vocal jazz 進入，再接 piano trio，最後用 cool jazz 練習聽留白。',
-  },
+import type { FormEvent } from 'react';
+
+import type { AiDjPlanOutput } from '../../lib/ai-dj/plan-schema';
+
+const modeOptions = [
+  { label: 'Auto', value: 'auto' },
+  { label: 'Jazz Intro', value: 'jazz_intro' },
+  { label: 'Classical Intro', value: 'classical_intro' },
+  { label: 'Work Focus', value: 'work_focus' },
 ];
 
-const mockModes = ['Jazz Intro', 'Classical Intro', 'Work Focus'];
+type ChatPanelProps = {
+  errorMessage: string | null;
+  isLoading: boolean;
+  onModeChange(mode: string): void;
+  onPromptChange(prompt: string): void;
+  onSubmit(): void;
+  plan: AiDjPlanOutput | null;
+  prompt: string;
+  selectedMode: string;
+};
 
-export default function ChatPanel() {
+export default function ChatPanel({
+  errorMessage,
+  isLoading,
+  onModeChange,
+  onPromptChange,
+  onSubmit,
+  plan,
+  prompt,
+  selectedMode,
+}: ChatPanelProps) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSubmit();
+  }
+
   return (
     <section className="min-h-[620px] rounded-lg border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
       <div className="flex items-start justify-between gap-4">
@@ -24,51 +47,78 @@ export default function ChatPanel() {
           </p>
         </div>
         <span className="rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300">
-          Mock
+          Live
         </span>
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        {mockModes.map((mode) => (
+        {modeOptions.map((mode) => (
           <button
-            key={mode}
-            className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-300 hover:border-emerald-400 hover:text-white"
+            key={mode.value}
+            className={`rounded-md border px-3 py-2 text-sm ${
+              selectedMode === mode.value
+                ? 'border-emerald-400 bg-emerald-400/10 text-white'
+                : 'border-zinc-700 text-zinc-300 hover:border-emerald-400 hover:text-white'
+            }`}
+            onClick={() => onModeChange(mode.value)}
             type="button"
           >
-            {mode}
+            {mode.label}
           </button>
         ))}
       </div>
 
       <div className="mt-6 space-y-3">
-        {mockMessages.map((message, index) => (
-          <div
-            key={index}
-            className={`rounded-lg border p-4 ${
-              message.role === 'assistant'
-                ? 'border-emerald-500/20 bg-emerald-500/10 text-zinc-100'
-                : 'border-zinc-700 bg-zinc-950 text-zinc-200'
-            }`}
-          >
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">
-              {message.role}
-            </p>
-            <p className="mt-2 leading-7">{message.text}</p>
-          </div>
-        ))}
+        <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-4 text-zinc-200">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">user</p>
+          <p className="mt-2 leading-7">{prompt || '我想聽爵士，想學一點，不要太硬。'}</p>
+        </div>
+
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-zinc-100">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">assistant</p>
+          <p className="mt-2 leading-7">
+            {plan?.djIntro ??
+              '送出需求後，我會產生 Spotify search queries，並把候選曲放到右側清單。'}
+          </p>
+        </div>
       </div>
 
-      <form className="mt-6 flex flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+      {plan ? (
+        <div className="mt-5 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+          <p className="text-sm font-semibold text-white">Search strategy</p>
+          <div className="mt-3 space-y-2 text-sm leading-6 text-zinc-300">
+            {plan.spotifySearchQueries.map((query, index) => (
+              <p key={query}>
+                <span className="text-zinc-500">{index + 1}.</span> {query}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <div className="mt-5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm leading-6 text-amber-100">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      <form
+        className="mt-6 flex flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-4"
+        onSubmit={handleSubmit}
+      >
         <textarea
           className="h-32 w-full resize-none rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-400"
+          maxLength={500}
+          onChange={(event) => onPromptChange(event.target.value)}
           placeholder="請輸入你的音樂需求..."
-          readOnly
+          value={prompt}
         />
         <button
-          className="rounded-md bg-emerald-500 px-5 py-3 text-base font-semibold text-zinc-950 hover:bg-emerald-400"
-          type="button"
+          className="rounded-md bg-emerald-500 px-5 py-3 text-base font-semibold text-zinc-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isLoading || prompt.trim().length === 0}
+          type="submit"
         >
-          送出需求（mock）
+          {isLoading ? '產生中...' : '送出需求'}
         </button>
       </form>
     </section>
