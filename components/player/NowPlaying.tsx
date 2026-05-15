@@ -124,7 +124,7 @@ export default function NowPlaying({ djMode = 'jazz_intro' }: NowPlayingProps) {
 
         {status === 'device_inactive' && deviceId ? (
           <button
-            className="aqua-button mt-5 w-full rounded-md px-4 py-3 text-sm font-semibold"
+            className="mt-5 w-full rounded-md border border-sky-700 bg-sky-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-sky-800"
             onClick={() => void activateBrowserDevice()}
             type="button"
           >
@@ -146,7 +146,7 @@ export default function NowPlaying({ djMode = 'jazz_intro' }: NowPlayingProps) {
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           <button
-            className="glass-control rounded-md px-3 py-3 text-sm text-slate-700 hover:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-slate-400 bg-white px-3 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:border-sky-600 hover:bg-sky-50 hover:text-sky-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             disabled={!playerReady}
             onClick={() => void runPlayerCommand('previous')}
             type="button"
@@ -154,7 +154,7 @@ export default function NowPlaying({ djMode = 'jazz_intro' }: NowPlayingProps) {
             上一首
           </button>
           <button
-            className="aqua-button rounded-md px-3 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-sky-700 bg-sky-700 px-3 py-3 text-sm font-semibold text-white shadow-sm hover:bg-sky-800 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
             disabled={!playerReady}
             onClick={() => void runPlayerCommand('toggle')}
             type="button"
@@ -162,7 +162,7 @@ export default function NowPlaying({ djMode = 'jazz_intro' }: NowPlayingProps) {
             {isPlaying ? '暫停' : '播放'}
           </button>
           <button
-            className="glass-control rounded-md px-3 py-3 text-sm text-slate-700 hover:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-slate-400 bg-white px-3 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:border-sky-600 hover:bg-sky-50 hover:text-sky-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             disabled={!playerReady}
             onClick={() => void runPlayerCommand('next')}
             type="button"

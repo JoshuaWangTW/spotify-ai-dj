@@ -141,6 +141,33 @@ export function useSpotifyWebPlayback() {
     }
   }, []);
 
+  const applyPlaybackState = useCallback((state: SpotifyWebPlaybackState | null): boolean => {
+    if (!mountedRef.current || !state) {
+      return false;
+    }
+
+    setTrack(getTrackState(state));
+    setIsPlaying(!state.paused);
+    setStatus('ready');
+    setNotice(null);
+
+    return true;
+  }, []);
+
+  const syncCurrentPlayerState = useCallback(async (): Promise<boolean> => {
+    const player = playerRef.current;
+
+    if (!player) {
+      return false;
+    }
+
+    try {
+      return applyPlaybackState(await player.getCurrentState());
+    } catch {
+      return false;
+    }
+  }, [applyPlaybackState]);
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -259,10 +286,7 @@ export function useSpotifyWebPlayback() {
         return;
       }
 
-      setTrack(getTrackState(state));
-      setIsPlaying(!state.paused);
-      setStatus('ready');
-      setNotice(null);
+      applyPlaybackState(state);
     });
 
     playerRef.current = player;
@@ -283,7 +307,7 @@ export function useSpotifyWebPlayback() {
       player.disconnect();
       playerRef.current = null;
     };
-  }, [sdkReady]);
+  }, [applyPlaybackState, sdkReady]);
 
   const activateBrowserDevice = useCallback(async () => {
     if (!deviceId) {
@@ -306,6 +330,7 @@ export function useSpotifyWebPlayback() {
           message: '瀏覽器播放器已設為 active device，現在可以加入 queue 並播放。',
           tone: 'success',
         });
+        await syncCurrentPlayerState();
         return;
       }
 
@@ -318,7 +343,7 @@ export function useSpotifyWebPlayback() {
       setStatus('device_inactive');
       setNotice({ message: '網路錯誤，請稍後再試。', tone: 'error' });
     }
-  }, [deviceId]);
+  }, [deviceId, syncCurrentPlayerState]);
 
   const runPlayerCommand = useCallback(async (command: PlayerCommand) => {
     const player = playerRef.current;
@@ -339,6 +364,8 @@ export function useSpotifyWebPlayback() {
       } else {
         await player.togglePlay();
       }
+
+      await syncCurrentPlayerState();
     } catch {
       setStatus('error');
       setNotice({
@@ -346,7 +373,7 @@ export function useSpotifyWebPlayback() {
         tone: 'error',
       });
     }
-  }, []);
+  }, [syncCurrentPlayerState]);
 
   return {
     activateBrowserDevice,
