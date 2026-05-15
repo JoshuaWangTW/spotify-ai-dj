@@ -399,7 +399,7 @@ export default function AiDjWorkspace() {
           id="workspace-panel-player"
           role="tabpanel"
         >
-          <NowPlaying />
+          <NowPlaying djMode={plan?.mode ?? 'jazz_intro'} />
         </div>
 
         <div

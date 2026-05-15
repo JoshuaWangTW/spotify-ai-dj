@@ -27,7 +27,7 @@ const planningSystemPrompt = [
   '不要宣稱你訓練過 Spotify 資料。',
   '輸出必須符合指定 JSON schema。',
   '推薦要考慮：使用情境、能量、人聲比例、學習難度、曲目銜接。',
-  '請產生 3 到 5 個 Spotify search queries 與對應 queue reasoning。',
+  '請產生 8 到 10 個 Spotify search queries 與對應 queue reasoning。',
 ].join('\n');
 
 const commentarySystemPrompt = [
@@ -231,7 +231,7 @@ export async function createOpenAiDjPlan(
             content: buildUserContext(input, profile),
           },
         ],
-        max_output_tokens: 700,
+        max_output_tokens: 1200,
         temperature: 0.4,
         text: {
           format: {

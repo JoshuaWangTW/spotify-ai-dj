@@ -24,8 +24,8 @@ export const aiDjPlanOutputSchema = z
     energy: z.number().min(0).max(1),
     vocalPreference: z.enum(['instrumental', 'low', 'medium', 'high', 'no_preference']),
     difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
-    spotifySearchQueries: z.array(z.string().trim().min(1).max(120)).min(3).max(5),
-    queueReasoning: z.array(z.string().trim().min(1).max(160)).min(3).max(5),
+    spotifySearchQueries: z.array(z.string().trim().min(1).max(120)).min(5).max(10),
+    queueReasoning: z.array(z.string().trim().min(1).max(160)).min(5).max(10),
     djIntro: z.string().trim().min(1).max(220),
   })
   .strict();

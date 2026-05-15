@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import DJCommentaryCard from '../dj/DJCommentaryCard';
+
 type PlaybackStatus = 'loading' | 'auth_required' | 'ready' | 'device_inactive' | 'error' | 'activating';
 
 type TrackState = {
@@ -71,7 +73,11 @@ function getErrorMessage(code: string): string {
   return '無法取得 Spotify 播放權限，請稍後再試。';
 }
 
-export default function NowPlaying() {
+type NowPlayingProps = {
+  djMode?: string;
+};
+
+export default function NowPlaying({ djMode = 'jazz_intro' }: NowPlayingProps) {
   const playerRef = useRef<SpotifyWebPlaybackPlayer | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -265,50 +271,48 @@ export default function NowPlaying() {
       </div>
 
       <div className="glass-card mt-6 rounded-lg p-5">
-        <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-slate-100/60 bg-white/30">
-          {track?.albumImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt={`${track.album} album art`}
-              className="h-full w-full object-cover opacity-95"
-              src={track.albumImageUrl}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,rgba(186,230,253,0.5)_0%,rgba(224,242,254,0.7)_42%,rgba(241,245,249,0.8)_100%)] text-sm text-slate-600">
-              AI DJ
-            </div>
-          )}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.6),transparent_34%),linear-gradient(to_bottom,transparent,rgba(241,245,249,0.3))]" />
-          {isPlaying ? (
-            <div className="pointer-events-none absolute inset-x-0 bottom-8 flex justify-center">
-              <div className="sound-wave rounded-full border border-slate-200/60 bg-white/60 px-5 py-4 backdrop-blur-md">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
+        {/* 水平排列：小專輯圖 + 曲目資訊 */}
+        <div className="flex gap-4">
+          <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border border-slate-100/60 bg-white/30">
+            {track?.albumImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                alt={`${track.album} album art`}
+                className="h-full w-full object-cover opacity-95"
+                src={track.albumImageUrl}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,rgba(186,230,253,0.5)_0%,rgba(224,242,254,0.7)_42%,rgba(241,245,249,0.8)_100%)] text-xs text-slate-500">
+                AI DJ
               </div>
-            </div>
-          ) : null}
-        </div>
+            )}
+            {isPlaying ? (
+              <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-1">
+                <div className="sound-wave scale-50 rounded-full border border-slate-200/60 bg-white/60 px-3 py-2 backdrop-blur-md">
+                  <span /><span /><span /><span /><span />
+                </div>
+              </div>
+            ) : null}
+          </div>
 
-        <div className="mt-5 min-h-[120px]">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">正在播放</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-800">
-            {track?.title ?? '等待 Spotify 播放狀態'}
-          </p>
-          <p className="mt-1 text-slate-500">{track?.artist ?? '尚未收到曲目資料'}</p>
-          <p className="text-sm text-slate-400">{track?.album ?? 'Spotify Premium required'}</p>
-          {spotifyTrackUrl ? (
-            <a
-              className="aqua-link mt-3 inline-flex text-xs font-medium"
-              href={spotifyTrackUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Open in Spotify
-            </a>
-          ) : null}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">正在播放</p>
+            <p className="mt-1 truncate text-lg font-semibold text-slate-800">
+              {track?.title ?? '等待 Spotify 播放狀態'}
+            </p>
+            <p className="truncate text-sm text-slate-500">{track?.artist ?? '尚未收到曲目資料'}</p>
+            <p className="truncate text-xs text-slate-400">{track?.album ?? 'Spotify Premium required'}</p>
+            {spotifyTrackUrl ? (
+              <a
+                className="aqua-link mt-1 inline-flex text-xs font-medium"
+                href={spotifyTrackUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Open in Spotify
+              </a>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-6">
@@ -376,6 +380,15 @@ export default function NowPlaying() {
             下一首
           </button>
         </div>
+
+        {track ? (
+          <DJCommentaryCard
+            key={track.trackUri}
+            artistName={track.artist}
+            mode={djMode}
+            trackName={track.title}
+          />
+        ) : null}
 
         {deviceId ? (
           <p className="mt-4 break-all text-xs leading-5 text-slate-500">Device ID: {deviceId}</p>

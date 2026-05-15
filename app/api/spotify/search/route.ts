@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 
 const spotifySearchInputSchema = z
   .object({
-    queries: z.array(z.string().trim().min(1).max(120)).min(1).max(5),
+    queries: z.array(z.string().trim().min(1).max(120)).min(1).max(10),
   })
   .strict();
 
