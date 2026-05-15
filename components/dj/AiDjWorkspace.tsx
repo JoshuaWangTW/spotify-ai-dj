@@ -236,6 +236,12 @@ export default function AiDjWorkspace() {
         </div>
       </div>
 
+      {errorMessage ? (
+        <div className="rounded-md border border-rose-300/50 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">
+          {errorMessage}
+        </div>
+      ) : null}
+
       <div className="relative">
         <div
           aria-labelledby="workspace-tab-chat"
@@ -244,7 +250,7 @@ export default function AiDjWorkspace() {
           role="tabpanel"
         >
           <ChatPanel
-            errorMessage={errorMessage}
+            errorMessage={null}
             isLoading={isLoading}
             onModeChange={setSelectedMode}
             onPromptChange={setPrompt}

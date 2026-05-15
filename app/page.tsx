@@ -1,7 +1,12 @@
 import { cookies } from 'next/headers';
 import AiDjWorkspace from '../components/dj/AiDjWorkspace';
 
-async function getSessionUser(): Promise<{ displayName: string } | null> {
+type SessionUser = {
+  displayName: string;
+  spotifyConnected: boolean;
+};
+
+async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('spotify_ai_dj_session');
   if (!sessionCookie?.value) return null;
@@ -13,15 +18,28 @@ async function getSessionUser(): Promise<{ displayName: string } | null> {
   try {
     const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as {
       displayName?: string;
+      spotifyConnected?: boolean;
     };
-    return { displayName: payload.displayName ?? 'User' };
+    return {
+      displayName: payload.displayName ?? 'User',
+      spotifyConnected: payload.spotifyConnected === true,
+    };
   } catch {
     return null;
   }
 }
 
-export default async function HomePage() {
+type HomePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
   const sessionUser = await getSessionUser();
+  const params = await searchParams;
+  const authResult = typeof params.auth === 'string' ? params.auth : null;
+  const authError = typeof params.auth_error === 'string' ? params.auth_error : null;
+
+  const spotifyConnected = authResult === 'spotify_connected' || sessionUser?.spotifyConnected === true;
 
   return (
     <main className="liquid-shell min-h-screen px-4 py-6 text-slate-700 sm:px-6 lg:px-8">
@@ -57,6 +75,24 @@ export default async function HomePage() {
             </a>
           </div>
         </header>
+
+        {authResult === 'spotify_connected' ? (
+          <div className="rounded-md border border-emerald-300/60 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            Spotify 連線成功！現在可以送出需求產生播放清單。
+          </div>
+        ) : null}
+
+        {authError === 'spotify_denied' ? (
+          <div className="rounded-md border border-rose-300/50 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            Spotify 授權被取消。請再次點擊「Connect Spotify」。
+          </div>
+        ) : null}
+
+        {sessionUser && !spotifyConnected && authResult !== 'spotify_connected' ? (
+          <div className="rounded-md border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            尚未連接 Spotify，請點擊右上角「Connect Spotify」授權後才能使用 AI DJ 功能。
+          </div>
+        ) : null}
 
         <AiDjWorkspace />
       </div>

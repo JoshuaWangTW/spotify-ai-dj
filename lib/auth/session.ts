@@ -37,6 +37,7 @@ type SignedSessionPayload = {
   createdAt: number;
   displayName: string;
   sessionId: string;
+  spotifyConnected: boolean;
   userId: string;
   version: 1;
 };
@@ -98,6 +99,7 @@ function buildSessionCookieValue(session: SpotifyTokenSession): string {
     createdAt: session.createdAt,
     displayName: session.user.displayName,
     sessionId: session.id,
+    spotifyConnected: session.spotify !== undefined,
     userId: session.user.id,
     version: 1,
   };
@@ -150,6 +152,7 @@ function parseSignedSessionCookie(value: string): SignedSessionPayload | null {
       createdAt: payload.createdAt,
       displayName: payload.displayName,
       sessionId: payload.sessionId,
+      spotifyConnected: payload.spotifyConnected === true,
       userId: payload.userId,
       version: 1,
     };
