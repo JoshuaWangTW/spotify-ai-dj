@@ -111,6 +111,7 @@ async function fetchSpotifyAccessToken(): Promise<TokenResponse> {
 }
 
 export function useSpotifyWebPlayback() {
+  const browserDeviceActivatedRef = useRef(false);
   const mountedRef = useRef(false);
   const playerRef = useRef<SpotifyWebPlaybackPlayer | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -148,6 +149,7 @@ export function useSpotifyWebPlayback() {
 
     setTrack(getTrackState(state));
     setIsPlaying(!state.paused);
+    browserDeviceActivatedRef.current = true;
     setStatus('ready');
     setNotice(null);
 
@@ -237,6 +239,7 @@ export function useSpotifyWebPlayback() {
     });
 
     player.addListener('ready', ({ device_id }) => {
+      browserDeviceActivatedRef.current = false;
       setDeviceId(device_id);
       setPlayerReady(true);
       setStatus('device_inactive');
@@ -247,6 +250,7 @@ export function useSpotifyWebPlayback() {
     });
 
     player.addListener('not_ready', () => {
+      browserDeviceActivatedRef.current = false;
       setDeviceId(null);
       setPlayerReady(false);
       setStatus('device_inactive');
@@ -278,6 +282,15 @@ export function useSpotifyWebPlayback() {
 
     player.addListener('player_state_changed', (state) => {
       if (!state) {
+        if (browserDeviceActivatedRef.current) {
+          setStatus('device_active');
+          setNotice({
+            message: '瀏覽器播放器已啟動，等待 Spotify 回傳目前曲目。',
+            tone: 'success',
+          });
+          return;
+        }
+
         setStatus('device_inactive');
         setNotice({
           message: '沒有 active playback device。請在 Spotify 中選擇 AI DJ Web Player。',
@@ -325,6 +338,7 @@ export function useSpotifyWebPlayback() {
       });
 
       if (response.ok) {
+        browserDeviceActivatedRef.current = true;
         setStatus('device_active');
         setNotice({
           message: '瀏覽器播放器已設為 active device，現在可以加入 queue 並播放。',

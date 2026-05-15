@@ -250,7 +250,13 @@ export default function RadioConsole() {
                 : '建立一段可持續 tick 的 AI radio session。'}
             </p>
           </div>
-          <span className="rounded-md border border-sky-200/50 bg-sky-100/70 px-2.5 py-1 text-xs font-medium text-sky-700">
+          <span
+            className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${
+              session?.status === 'active'
+                ? 'border-emerald-700 bg-emerald-700 text-white'
+                : 'border-slate-400 bg-white text-slate-700'
+            }`}
+          >
             {session?.status === 'active' ? 'On Air' : 'Standby'}
           </span>
         </div>
