@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { AiDjPlanOutput } from '../../lib/ai-dj/plan-schema';
 import type { SpotifyTrackCandidate } from '../../lib/spotify-types';
@@ -49,6 +49,14 @@ export default function AiDjWorkspace() {
   >({});
   const [selectedMode, setSelectedMode] = useState('auto');
   const [tracks, setTracks] = useState<SpotifyTrackCandidate[]>([]);
+  const [continuousPlay, setContinuousPlay] = useState(false);
+  const [isAutoRefilling, setIsAutoRefilling] = useState(false);
+
+  const autoRefillStateRef = useRef({ isRefilling: false, prompt: '', selectedMode: 'auto' });
+  useEffect(() => {
+    autoRefillStateRef.current.prompt = prompt;
+    autoRefillStateRef.current.selectedMode = selectedMode;
+  }, [prompt, selectedMode]);
 
   async function handleSubmit() {
     let planCreated = false;
@@ -140,6 +148,79 @@ export default function AiDjWorkspace() {
       setIsLoading(false);
     }
   }
+
+  async function handleAutoRefill() {
+    const state = autoRefillStateRef.current;
+    if (state.isRefilling) return;
+    state.isRefilling = true;
+    setIsAutoRefilling(true);
+
+    try {
+      const planRes = await fetch('/api/ai-dj/plan', {
+        body: JSON.stringify({ mode: state.selectedMode, prompt: state.prompt }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      if (!planRes.ok) return;
+
+      const planBody = (await planRes.json()) as AiDjPlanOutput | ApiError;
+      if (isApiError(planBody)) return;
+
+      const searchRes = await fetch('/api/spotify/search', {
+        body: JSON.stringify({ queries: planBody.spotifySearchQueries }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      if (!searchRes.ok) return;
+
+      const searchBody = (await searchRes.json()) as { tracks: SpotifyTrackCandidate[] } | ApiError;
+      if (isApiError(searchBody)) return;
+
+      const newTracks = searchBody.tracks;
+      if (newTracks.length === 0) return;
+
+      const uris = newTracks.map((t) => t.spotifyUri);
+      const queueRes = await fetch('/api/spotify/queue', {
+        body: JSON.stringify({ spotifyUris: uris }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+
+      if (queueRes.ok) {
+        setTracks(newTracks);
+        setPlan(planBody);
+        setQueueStatusByUri(Object.fromEntries(uris.map((uri) => [uri, 'added' as const])));
+      }
+    } catch {
+      // 靜默失敗，不打斷播放
+    } finally {
+      state.isRefilling = false;
+      setIsAutoRefilling(false);
+    }
+  }
+
+  const handleAutoRefillRef = useRef(handleAutoRefill);
+  handleAutoRefillRef.current = handleAutoRefill;
+
+  useEffect(() => {
+    if (!continuousPlay || tracks.length === 0) return;
+
+    const check = async () => {
+      try {
+        const res = await fetch('/api/spotify/queue-status');
+        if (!res.ok) return;
+        const data = (await res.json()) as { queueCount: number };
+        if (data.queueCount <= 1) {
+          await handleAutoRefillRef.current();
+        }
+      } catch {
+        // 靜默失敗
+      }
+    };
+
+    const interval = setInterval(() => void check(), 30_000);
+    return () => clearInterval(interval);
+  }, [continuousPlay, tracks.length]);
 
   async function handleAddToQueue(track: SpotifyTrackCandidate) {
     setQueueStatusByUri((current) => ({ ...current, [track.spotifyUri]: 'adding' }));
@@ -263,6 +344,29 @@ export default function AiDjWorkspace() {
           })}
         </div>
       </div>
+
+      {tracks.length > 0 ? (
+        <div className="glass-panel flex items-center justify-between rounded-lg px-4 py-2.5">
+          <span className="text-sm text-slate-600">
+            {isAutoRefilling ? '補充曲目中...' : continuousPlay ? '輪播開啟 — queue ≤ 1 首時自動補歌' : '輪播關閉'}
+          </span>
+          <button
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+              continuousPlay ? 'bg-sky-500' : 'bg-slate-200'
+            }`}
+            onClick={() => setContinuousPlay((v) => !v)}
+            role="switch"
+            aria-checked={continuousPlay}
+            type="button"
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                continuousPlay ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+      ) : null}
 
       {errorMessage ? (
         <div className="rounded-md border border-rose-300/50 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">
