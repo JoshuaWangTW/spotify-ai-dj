@@ -1,5 +1,5 @@
 {
-  "build_command": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm build",
+  "build_command": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm db:deploy && pnpm build",
   "start_command": "PORT=80 pnpm start",
   "port": 80
 }
