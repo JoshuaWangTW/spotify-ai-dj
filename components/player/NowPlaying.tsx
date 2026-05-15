@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-type PlaybackStatus = 'loading' | 'auth_required' | 'ready' | 'device_inactive' | 'error';
+type PlaybackStatus = 'loading' | 'auth_required' | 'ready' | 'device_inactive' | 'error' | 'activating';
 
 type TrackState = {
   album: string;
@@ -202,6 +202,31 @@ export default function NowPlaying() {
     };
   }, [sdkReady]);
 
+  async function activateBrowserDevice() {
+    if (!deviceId) return;
+    setStatus('activating');
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch('/api/spotify/transfer-playback', {
+        body: JSON.stringify({ deviceId }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        setStatus('device_inactive');
+        setErrorMessage('啟動失敗，請確認 Spotify 帳號已登入且有 Premium。');
+      } else {
+        setStatus('device_inactive');
+        setErrorMessage('瀏覽器播放器已設為 active device！現在可以加入 queue 並播放。');
+      }
+    } catch {
+      setStatus('device_inactive');
+      setErrorMessage('網路錯誤，請稍後再試。');
+    }
+  }
+
   async function runPlayerCommand(command: 'previous' | 'toggle' | 'next') {
     const player = playerRef.current;
 
@@ -299,8 +324,28 @@ export default function NowPlaying() {
           </div>
         </div>
 
+        {status === 'device_inactive' && deviceId ? (
+          <button
+            className="aqua-button mt-5 w-full rounded-md px-4 py-3 text-sm font-semibold"
+            onClick={() => void activateBrowserDevice()}
+            type="button"
+          >
+            啟動瀏覽器播放
+          </button>
+        ) : null}
+
+        {status === 'activating' ? (
+          <div className="mt-5 rounded-md border border-sky-200/50 bg-sky-50 px-3 py-2 text-sm text-sky-700">
+            正在啟動瀏覽器播放器...
+          </div>
+        ) : null}
+
         {errorMessage ? (
-          <div className="mt-5 rounded-md border border-rose-300/50 bg-rose-50 px-3 py-2 text-sm leading-6 text-rose-700">
+          <div className={`mt-5 rounded-md border px-3 py-2 text-sm leading-6 ${
+            errorMessage.includes('已設為')
+              ? 'border-emerald-300/60 bg-emerald-50 text-emerald-700'
+              : 'border-rose-300/50 bg-rose-50 text-rose-700'
+          }`}>
             {errorMessage}
           </div>
         ) : null}
