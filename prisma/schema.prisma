@@ -17,10 +17,12 @@ model User {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  musicProfile  MusicProfile?
-  sessions      ListeningSession[]
-  radioSessions RadioSession[]
-  feedback      TrackFeedback[]
+  musicProfile           MusicProfile?
+  sessions               ListeningSession[]
+  radioSessions          RadioSession[]
+  assistantConversations AssistantConversation[]
+  musicMemories          MusicMemory[]
+  feedback               TrackFeedback[]
 }
 
 model MusicProfile {
@@ -110,6 +112,50 @@ model TrackFeedback {
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model AssistantConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String?
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User               @relation(fields: [userId], references: [id])
+  messages AssistantMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model AssistantMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId, createdAt])
+}
+
+model MusicMemory {
+  id         String    @id @default(cuid())
+  userId     String
+  type       String
+  content    String
+  confidence Float     @default(0.6)
+  source     String    @default("assistant_chat")
+  status     String    @default("active")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, type, status])
 }
 
 model MusicNote {

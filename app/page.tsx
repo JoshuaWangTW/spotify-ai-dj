@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import MusicAssistantChatbox from '../components/assistant/MusicAssistantChatbox';
 import RadioConsole from '../components/radio/RadioConsole';
 
 type SessionUser = {
@@ -94,6 +95,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         ) : null}
 
+        <MusicAssistantChatbox />
         <RadioConsole />
       </div>
     </main>

@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 
+import {
+  musicAssistantChatInputSchema,
+  musicAssistantOutputSchema,
+} from '../lib/music-assistant/schema';
 import { determineRadioProgrammingContext } from '../lib/radio/programming';
 import {
   radioSegmentPlanOutputSchema,
@@ -104,10 +108,65 @@ function testSegmentPlanRequiresFiveToEightQueries() {
   assert.equal(tooShort.success, false);
 }
 
+function testMusicAssistantChatInput() {
+  const parsed = musicAssistantChatInputSchema.safeParse({
+    message: '我想慢慢建立我的爵士偏好，先從舒服、不太吵的鋼琴開始。',
+  });
+
+  assert.equal(parsed.success, true);
+
+  const empty = musicAssistantChatInputSchema.safeParse({
+    message: '   ',
+  });
+
+  assert.equal(empty.success, false);
+}
+
+function testMusicAssistantOutputMemoryCandidates() {
+  const parsed = musicAssistantOutputSchema.safeParse({
+    memoryCandidates: [
+      {
+        confidence: 0.82,
+        content: '使用者偏好不太吵、鋼琴為主的爵士入門曲目。',
+        type: 'taste',
+      },
+      {
+        confidence: 0.76,
+        content: '工作時應避免強鼓點與高能量人聲。',
+        type: 'avoid',
+      },
+    ],
+    profileSummaryPatch: {
+      avoidSummary: '工作時避免強鼓點與高能量人聲。',
+      tasteSummary: '偏好不太吵、鋼琴為主的爵士入門曲目。',
+    },
+    reply: '我先記住：你偏好柔和、鋼琴主導、不太吵的爵士。',
+    suggestedRadioPrompt: '柔和鋼琴爵士，適合工作，不要太吵。',
+  });
+
+  assert.equal(parsed.success, true);
+
+  const invalidType = musicAssistantOutputSchema.safeParse({
+    memoryCandidates: [
+      {
+        confidence: 0.82,
+        content: 'invalid',
+        type: 'spotify_history',
+      },
+    ],
+    profileSummaryPatch: {},
+    reply: 'ok',
+  });
+
+  assert.equal(invalidType.success, false);
+}
+
 testProgrammingAutoModeFromPrompt();
 testProgrammingKeepsExplicitMode();
 testStartInputDefaults();
 testTickInputDefaultsAndFeedbackLimit();
 testSegmentPlanRequiresFiveToEightQueries();
+testMusicAssistantChatInput();
+testMusicAssistantOutputMemoryCandidates();
 
 console.log('radio tests passed');
