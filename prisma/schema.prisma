@@ -17,9 +17,10 @@ model User {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  musicProfile MusicProfile?
-  sessions     ListeningSession[]
-  feedback     TrackFeedback[]
+  musicProfile  MusicProfile?
+  sessions      ListeningSession[]
+  radioSessions RadioSession[]
+  feedback      TrackFeedback[]
 }
 
 model MusicProfile {
@@ -44,6 +45,60 @@ model ListeningSession {
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model RadioSession {
+  id                  String    @id @default(cuid())
+  userId              String
+  status              String    @default("active")
+  mode                String
+  userPrompt          String
+  programmingContext  Json
+  currentSegmentIndex Int       @default(0)
+  startedAt           DateTime  @default(now())
+  endedAt             DateTime?
+  updatedAt           DateTime  @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id])
+  segments RadioSegment[]
+  events   RadioEvent[]
+
+  @@index([userId, status])
+}
+
+model RadioSegment {
+  id              String   @id @default(cuid())
+  sessionId       String
+  index           Int
+  mode            String
+  situation       String
+  energy          Float
+  djIntro         String
+  planJson        Json
+  trackQueries    String[]
+  queuedTrackUris String[]
+  createdAt       DateTime @default(now())
+
+  session RadioSession @relation(fields: [sessionId], references: [id])
+  events  RadioEvent[]
+
+  @@unique([sessionId, index])
+  @@index([sessionId])
+}
+
+model RadioEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  segmentId String?
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  session RadioSession  @relation(fields: [sessionId], references: [id])
+  segment RadioSegment? @relation(fields: [segmentId], references: [id])
+
+  @@index([sessionId, createdAt])
+  @@index([segmentId])
 }
 
 model TrackFeedback {

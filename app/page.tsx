@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import AiDjWorkspace from '../components/dj/AiDjWorkspace';
+import RadioConsole from '../components/radio/RadioConsole';
 
 type SessionUser = {
   displayName: string;
@@ -94,7 +94,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         ) : null}
 
-        <AiDjWorkspace />
+        <RadioConsole />
       </div>
     </main>
   );

@@ -1,0 +1,370 @@
+'use client';
+
+import { useState } from 'react';
+
+import type {
+  AiDjMode,
+  RadioSegmentResponse,
+  RadioStartOutput,
+  RadioTickOutput,
+  RadioStopOutput,
+} from '../../lib/radio/schema';
+import type { SpotifyTrackCandidate } from '../../lib/spotify-types';
+import NowPlaying from '../player/NowPlaying';
+import QueueList from '../queue/QueueList';
+
+type ApiError = {
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+type QueueStatus = 'idle' | 'adding' | 'added' | 'error';
+type FeedbackStatus = 'idle' | 'saving' | 'saved' | 'error';
+type FeedbackType =
+  | 'like'
+  | 'dislike'
+  | 'too_loud'
+  | 'no_vocals'
+  | 'work_focus'
+  | 'more_detail';
+
+type PendingFeedback = {
+  feedbackType: FeedbackType;
+  spotifyTrackId: string;
+  trackName: string;
+};
+
+const modeOptions: Array<{ label: string; value: AiDjMode }> = [
+  { label: 'Auto', value: 'auto' },
+  { label: 'Jazz', value: 'jazz_intro' },
+  { label: 'Classical', value: 'classical_intro' },
+  { label: 'Focus', value: 'work_focus' },
+  { label: 'Coffee', value: 'coffee_roasting' },
+  { label: 'Store', value: 'dinner_store_background' },
+];
+
+function isApiError(body: unknown): body is ApiError {
+  return typeof body === 'object' && body !== null && 'error' in body;
+}
+
+function getApiErrorMessage(body: unknown, fallback: string): string {
+  const parsed = body as ApiError;
+
+  return parsed.error?.message ?? fallback;
+}
+
+async function readJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(fallbackMessage);
+  }
+}
+
+function buildQueueStatus(segment: RadioSegmentResponse): Record<string, QueueStatus> {
+  const queued = new Set(segment.queuedTrackUris);
+
+  return Object.fromEntries(
+    segment.tracks.map((track) => [track.spotifyUri, queued.has(track.spotifyUri) ? 'added' : 'idle']),
+  );
+}
+
+export default function RadioConsole() {
+  const [autoplayQueue, setAutoplayQueue] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [feedbackStatusByKey, setFeedbackStatusByKey] = useState<Record<string, FeedbackStatus>>(
+    {},
+  );
+  const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+  const [isTicking, setIsTicking] = useState(false);
+  const [mode, setMode] = useState<AiDjMode>('auto');
+  const [pendingFeedback, setPendingFeedback] = useState<PendingFeedback[]>([]);
+  const [prompt, setPrompt] = useState('今晚想聽爵士，像電台一樣慢慢接，不要太吵。');
+  const [queueStatusByUri, setQueueStatusByUri] = useState<Record<string, QueueStatus>>({});
+  const [segment, setSegment] = useState<RadioSegmentResponse | null>(null);
+  const [session, setSession] = useState<RadioStartOutput['session'] | null>(null);
+  const [tracks, setTracks] = useState<SpotifyTrackCandidate[]>([]);
+
+  const isBusy = isStarting || isTicking || isStopping;
+  const currentMode = segment?.plan.mode ?? session?.mode ?? 'jazz_intro';
+
+  async function startSession() {
+    setErrorMessage(null);
+    setIsStarting(true);
+    setPendingFeedback([]);
+    setFeedbackStatusByKey({});
+
+    try {
+      const response = await fetch('/api/radio/start', {
+        body: JSON.stringify({
+          autoplayQueue,
+          clientTimeIso: new Date().toISOString(),
+          mode,
+          prompt,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      const body = await readJsonResponse<RadioStartOutput | ApiError>(
+        response,
+        'Radio start 回傳格式錯誤。',
+      );
+
+      if (!response.ok || isApiError(body)) {
+        throw new Error(getApiErrorMessage(body, 'Radio session 建立失敗。'));
+      }
+
+      setSession(body.session);
+      setSegment(body.segment);
+      setTracks(body.segment.tracks);
+      setQueueStatusByUri(buildQueueStatus(body.segment));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Radio session 建立失敗。');
+    } finally {
+      setIsStarting(false);
+    }
+  }
+
+  async function tickSession() {
+    if (!session) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsTicking(true);
+
+    try {
+      const response = await fetch('/api/radio/tick', {
+        body: JSON.stringify({
+          autoplayQueue,
+          clientTimeIso: new Date().toISOString(),
+          feedback: pendingFeedback,
+          sessionId: session.id,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      const body = await readJsonResponse<RadioTickOutput | ApiError>(
+        response,
+        'Radio tick 回傳格式錯誤。',
+      );
+
+      if (!response.ok || isApiError(body)) {
+        throw new Error(getApiErrorMessage(body, 'Radio tick 失敗。'));
+      }
+
+      setSession((current) => (current ? { ...current, mode: body.session.mode } : current));
+      setSegment(body.segment);
+      setTracks(body.segment.tracks);
+      setQueueStatusByUri(buildQueueStatus(body.segment));
+      setPendingFeedback([]);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Radio tick 失敗。');
+    } finally {
+      setIsTicking(false);
+    }
+  }
+
+  async function stopSession() {
+    if (!session) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsStopping(true);
+
+    try {
+      const response = await fetch('/api/radio/stop', {
+        body: JSON.stringify({ sessionId: session.id }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      const body = await readJsonResponse<RadioStopOutput | ApiError>(
+        response,
+        'Radio stop 回傳格式錯誤。',
+      );
+
+      if (!response.ok || isApiError(body)) {
+        throw new Error(getApiErrorMessage(body, 'Radio stop 失敗。'));
+      }
+
+      setSession((current) => (current ? { ...current, status: body.session.status } : current));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Radio stop 失敗。');
+    } finally {
+      setIsStopping(false);
+    }
+  }
+
+  async function addToQueue(track: SpotifyTrackCandidate) {
+    setQueueStatusByUri((current) => ({ ...current, [track.spotifyUri]: 'adding' }));
+
+    try {
+      const response = await fetch('/api/spotify/queue', {
+        body: JSON.stringify({ spotifyUris: [track.spotifyUri] }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+
+      setQueueStatusByUri((current) => ({
+        ...current,
+        [track.spotifyUri]: response.ok ? 'added' : 'error',
+      }));
+    } catch {
+      setQueueStatusByUri((current) => ({ ...current, [track.spotifyUri]: 'error' }));
+    }
+  }
+
+  function recordFeedback(track: SpotifyTrackCandidate, feedbackType: FeedbackType) {
+    const feedbackKey = `${track.spotifyUri}:${feedbackType}`;
+    const spotifyTrackId = track.spotifyUri.split(':')[2] ?? track.spotifyUri;
+
+    setFeedbackStatusByKey((current) => ({ ...current, [feedbackKey]: 'saved' }));
+    setPendingFeedback((current) => [
+      ...current,
+      {
+        feedbackType,
+        spotifyTrackId,
+        trackName: track.title,
+      },
+    ]);
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(320px,420px)_1fr]">
+      <section className="glass-panel rounded-lg p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-800">Joshua Radio</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              {session?.status === 'active'
+                ? `Session ${session.id.slice(0, 8)} · segment ${segment?.index ?? 0}`
+                : '建立一段可持續 tick 的 AI radio session。'}
+            </p>
+          </div>
+          <span className="rounded-md border border-sky-200/50 bg-sky-100/70 px-2.5 py-1 text-xs font-medium text-sky-700">
+            {session?.status === 'active' ? 'On Air' : 'Standby'}
+          </span>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {modeOptions.map((option) => (
+            <button
+              key={option.value}
+              className={`rounded-md border px-3 py-2 text-sm ${
+                mode === option.value
+                  ? 'border-sky-400/60 bg-sky-100/70 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]'
+                  : 'border-slate-300/60 text-slate-600 hover:border-sky-400/50 hover:text-white'
+              }`}
+              disabled={session?.status === 'active'}
+              onClick={() => setMode(option.value)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="radio-prompt">
+          Session prompt
+        </label>
+        <textarea
+          className="glass-control mt-2 h-36 w-full resize-none rounded-md px-4 py-3 text-slate-700 outline-none placeholder:text-slate-400 focus:border-sky-400/60"
+          disabled={session?.status === 'active'}
+          id="radio-prompt"
+          maxLength={500}
+          onChange={(event) => setPrompt(event.target.value)}
+          value={prompt}
+        />
+
+        <div className="mt-4 flex items-center justify-between rounded-md border border-slate-200/70 bg-white/40 px-3 py-2">
+          <span className="text-sm text-slate-600">自動加入 Spotify queue</span>
+          <button
+            aria-checked={autoplayQueue}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${
+              autoplayQueue ? 'bg-sky-500' : 'bg-slate-200'
+            }`}
+            onClick={() => setAutoplayQueue((current) => !current)}
+            role="switch"
+            type="button"
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                autoplayQueue ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {errorMessage ? (
+          <div className="mt-4 rounded-md border border-rose-300/50 bg-rose-50 px-3 py-2 text-sm leading-6 text-rose-700">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-1">
+          <button
+            className="aqua-button rounded-md px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isBusy || prompt.trim().length === 0 || session?.status === 'active'}
+            onClick={() => void startSession()}
+            type="button"
+          >
+            {isStarting ? '啟動中...' : 'Start'}
+          </button>
+          <button
+            className="glass-control rounded-md px-4 py-3 text-sm font-semibold text-slate-700 hover:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isBusy || session?.status !== 'active'}
+            onClick={() => void tickSession()}
+            type="button"
+          >
+            {isTicking ? '產生下一段...' : 'Tick'}
+          </button>
+          <button
+            className="glass-control rounded-md px-4 py-3 text-sm font-semibold text-slate-700 hover:border-rose-300/60 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isBusy || session?.status !== 'active'}
+            onClick={() => void stopSession()}
+            type="button"
+          >
+            {isStopping ? '結束中...' : 'Stop'}
+          </button>
+        </div>
+
+        {segment ? (
+          <div className="mt-5 rounded-lg border border-sky-200/50 bg-sky-50/80 p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+              {segment.plan.segmentTitle}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{segment.plan.djIntro}</p>
+            <p className="mt-3 border-l-2 border-sky-400/60 pl-3 text-sm leading-6 text-slate-600">
+              {segment.plan.transitionNote}
+            </p>
+          </div>
+        ) : null}
+
+        {pendingFeedback.length > 0 ? (
+          <p className="mt-4 text-sm text-slate-500">
+            {pendingFeedback.length} 筆回饋會在下一次 tick 帶入。
+          </p>
+        ) : null}
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(320px,0.9fr)_minmax(420px,1.1fr)]">
+        <NowPlaying djMode={currentMode} />
+        <QueueList
+          feedbackStatusByKey={feedbackStatusByKey}
+          isLoading={isStarting || isTicking}
+          onAddToQueue={(track) => void addToQueue(track)}
+          onFeedback={recordFeedback}
+          plan={segment?.plan ?? null}
+          queueStatusByUri={queueStatusByUri}
+          tracks={tracks}
+        />
+      </div>
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ const SPOTIFY_AUTHORIZE_URL = 'https://accounts.spotify.com/authorize';
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SPOTIFY_SEARCH_URL = 'https://api.spotify.com/v1/search';
 const SPOTIFY_QUEUE_URL = 'https://api.spotify.com/v1/me/player/queue';
+const SPOTIFY_PLAYER_URL = 'https://api.spotify.com/v1/me/player';
 const SPOTIFY_ME_URL = 'https://api.spotify.com/v1/me';
 const SPOTIFY_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -53,6 +54,7 @@ const spotifySearchTrackSchema = z.object({
   external_urls: z.object({
     spotify: z.string().url(),
   }),
+  duration_ms: z.number().int().nonnegative().optional(),
   id: z.string(),
   is_playable: z.boolean().nullable().optional(),
   name: z.string(),
@@ -70,6 +72,14 @@ const spotifyUserProfileSchema = z.object({
   display_name: z.string().nullable().optional(),
   id: z.string().min(1),
 });
+
+const spotifyPlaybackResponseSchema = z
+  .object({
+    is_playing: z.boolean().optional(),
+    item: spotifySearchTrackSchema.nullable().optional(),
+    progress_ms: z.number().int().nonnegative().nullable().optional(),
+  })
+  .passthrough();
 
 export type SpotifyTokenResponse = {
   accessToken: string;
@@ -100,6 +110,15 @@ export class SpotifyWebApiError extends Error {
     this.status = status;
   }
 }
+
+export type SpotifyPlaybackSnapshot = {
+  artistName?: string;
+  durationMs?: number;
+  isPlaying?: boolean;
+  progressMs?: number;
+  spotifyUri?: string;
+  trackName?: string;
+};
 
 export function buildSpotifyAuthorizeUrl(creds: SpotifyAppCredentials, state: string): string {
   const authorizeUrl = new URL(SPOTIFY_AUTHORIZE_URL);
@@ -358,6 +377,83 @@ export async function queueSpotifyTracks(
     }
 
     throw new SpotifyWebApiError('SPOTIFY_QUEUE_FAILED', 'Spotify queue request failed.', 502);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function fetchSpotifyPlaybackState(
+  accessToken: string,
+): Promise<SpotifyPlaybackSnapshot | null> {
+  const abortController = new AbortController();
+  const timeout = setTimeout(() => abortController.abort(), SPOTIFY_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(SPOTIFY_PLAYER_URL, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: abortController.signal,
+    });
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new SpotifyWebApiError(
+        'SPOTIFY_PLAYBACK_STATE_FAILED',
+        'Spotify playback state request failed.',
+        response.status === 404 ? 409 : 502,
+      );
+    }
+
+    const json = (await response.json()) as unknown;
+    const parsed = spotifyPlaybackResponseSchema.safeParse(json);
+
+    if (!parsed.success) {
+      throw new SpotifyWebApiError(
+        'SPOTIFY_PLAYBACK_STATE_INVALID',
+        'Spotify playback state response was invalid.',
+        502,
+      );
+    }
+
+    const track = parsed.data.item;
+
+    if (!track) {
+      return {
+        isPlaying: parsed.data.is_playing,
+        progressMs: parsed.data.progress_ms ?? undefined,
+      };
+    }
+
+    return {
+      artistName: track.artists.map((artist) => artist.name).join(', '),
+      durationMs: track.duration_ms,
+      isPlaying: parsed.data.is_playing,
+      progressMs: parsed.data.progress_ms ?? undefined,
+      spotifyUri: track.uri,
+      trackName: track.name,
+    };
+  } catch (error) {
+    if (error instanceof SpotifyWebApiError) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new SpotifyWebApiError(
+        'SPOTIFY_PLAYBACK_STATE_TIMEOUT',
+        'Spotify playback state request timed out.',
+        504,
+      );
+    }
+
+    throw new SpotifyWebApiError(
+      'SPOTIFY_PLAYBACK_STATE_FAILED',
+      'Spotify playback state request failed.',
+      502,
+    );
   } finally {
     clearTimeout(timeout);
   }
