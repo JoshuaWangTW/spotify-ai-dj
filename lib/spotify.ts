@@ -49,14 +49,14 @@ const spotifySearchTrackSchema = z.object({
       name: z.string(),
     }),
   ),
-  explicit: z.boolean(),
+  explicit: z.boolean().default(false),
   external_urls: z.object({
     spotify: z.string().url(),
   }),
   id: z.string(),
-  is_playable: z.boolean().optional(),
+  is_playable: z.boolean().nullable().optional(),
   name: z.string(),
-  popularity: z.number().int().min(0).max(100),
+  popularity: z.number().int().min(0).max(100).optional().default(0),
   uri: z.string(),
 });
 
@@ -245,7 +245,7 @@ function normalizeSpotifyTrack(
 function selectBestTrackCandidate(
   tracks: Array<z.infer<typeof spotifySearchTrackSchema>>,
 ): z.infer<typeof spotifySearchTrackSchema> | null {
-  const playableTracks = tracks.filter((track) => track.is_playable !== false);
+  const playableTracks = tracks.filter((track) => track.is_playable !== false && track.is_playable !== null);
 
   return (
     playableTracks.sort((first, second) => {
