@@ -17,7 +17,7 @@ import {
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_REQUEST_TIMEOUT_MS = 15_000;
-const OPENAI_PLANNING_MODEL = 'gpt-4o-mini';
+const OPENAI_PLANNING_MODEL = 'gpt-4o';
 
 const planningSystemPrompt = [
   '你是一個音樂播放策略引擎，專長是古典樂與爵士樂導聆。',
