@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import type { Prisma } from '@prisma/client';
-
 import { getSpotifySession } from '../../../../lib/auth/session';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
@@ -49,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     const endedAt = new Date();
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.radioSession.update({
         data: {
           endedAt,

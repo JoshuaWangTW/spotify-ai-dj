@@ -67,7 +67,10 @@ function buildQueueStatus(segment: RadioSegmentResponse): Record<string, QueueSt
   const queued = new Set(segment.queuedTrackUris);
 
   return Object.fromEntries(
-    segment.tracks.map((track) => [track.spotifyUri, queued.has(track.spotifyUri) ? 'added' : 'idle']),
+    segment.tracks.map((track) => [
+      track.spotifyUri,
+      queued.has(track.spotifyUri) ? 'added' : 'idle',
+    ]),
   );
 }
 
@@ -258,8 +261,8 @@ export default function RadioConsole() {
               key={option.value}
               className={`rounded-md border px-3 py-2 text-sm ${
                 mode === option.value
-                  ? 'border-sky-400/60 bg-sky-100/70 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]'
-                  : 'border-slate-300/60 text-slate-600 hover:border-sky-400/50 hover:text-white'
+                  ? 'border-sky-700 bg-sky-700 text-white shadow-sm'
+                  : 'border-slate-300/70 bg-white/70 text-slate-700 hover:border-sky-500 hover:bg-sky-50 hover:text-sky-800'
               }`}
               disabled={session?.status === 'active'}
               onClick={() => setMode(option.value)}
@@ -309,7 +312,7 @@ export default function RadioConsole() {
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-1">
           <button
-            className="aqua-button rounded-md px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md border border-sky-700 bg-sky-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-sky-800 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
             disabled={isBusy || prompt.trim().length === 0 || session?.status === 'active'}
             onClick={() => void startSession()}
             type="button"
@@ -317,7 +320,7 @@ export default function RadioConsole() {
             {isStarting ? '啟動中...' : 'Start'}
           </button>
           <button
-            className="glass-control rounded-md px-4 py-3 text-sm font-semibold text-slate-700 hover:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md border border-slate-400 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:border-sky-600 hover:bg-sky-50 hover:text-sky-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             disabled={isBusy || session?.status !== 'active'}
             onClick={() => void tickSession()}
             type="button"
@@ -325,7 +328,7 @@ export default function RadioConsole() {
             {isTicking ? '產生下一段...' : 'Tick'}
           </button>
           <button
-            className="glass-control rounded-md px-4 py-3 text-sm font-semibold text-slate-700 hover:border-rose-300/60 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md border border-rose-300 bg-white px-4 py-3 text-sm font-semibold text-rose-700 shadow-sm hover:border-rose-600 hover:bg-rose-50 hover:text-rose-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             disabled={isBusy || session?.status !== 'active'}
             onClick={() => void stopSession()}
             type="button"

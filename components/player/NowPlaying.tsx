@@ -53,7 +53,7 @@ export default function NowPlaying({ djMode = 'jazz_intro' }: NowPlayingProps) {
           <p className="mt-2 text-sm leading-6 text-slate-500">Spotify Web Playback SDK player.</p>
         </div>
         <span className="rounded-md border border-sky-200/50 bg-sky-100/70 px-2.5 py-1 text-xs font-medium text-sky-700">
-          {status === 'ready' ? 'Live' : 'Setup'}
+          {status === 'ready' ? 'Live' : status === 'device_active' ? 'Active' : 'Setup'}
         </span>
       </div>
 

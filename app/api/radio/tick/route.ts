@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import type { Prisma } from '@prisma/client';
-
 import { getSpotifySession } from '../../../../lib/auth/session';
 import {
   getValidSpotifyAccessToken,
@@ -129,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     const nextIndex = (previousSegment?.index ?? radioSession.currentSegmentIndex) + 1;
 
-    const segment = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const segment = await prisma.$transaction(async (tx: any) => {
       const createdSegment = await tx.radioSegment.create({
         data: {
           djIntro: plan.djIntro,

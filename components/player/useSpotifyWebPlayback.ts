@@ -6,6 +6,7 @@ type PlaybackStatus =
   | 'loading'
   | 'auth_required'
   | 'ready'
+  | 'device_active'
   | 'device_inactive'
   | 'error'
   | 'activating';
@@ -299,18 +300,20 @@ export function useSpotifyWebPlayback() {
         method: 'POST',
       });
 
+      if (response.ok) {
+        setStatus('device_active');
+        setNotice({
+          message: '瀏覽器播放器已設為 active device，現在可以加入 queue 並播放。',
+          tone: 'success',
+        });
+        return;
+      }
+
       setStatus('device_inactive');
-      setNotice(
-        response.ok
-          ? {
-              message: '瀏覽器播放器已設為 active device，現在可以加入 queue 並播放。',
-              tone: 'success',
-            }
-          : {
-              message: '啟動失敗，請確認 Spotify 帳號已登入且有 Premium。',
-              tone: 'error',
-            },
-      );
+      setNotice({
+        message: '啟動失敗，請確認 Spotify 帳號已登入且有 Premium。',
+        tone: 'error',
+      });
     } catch {
       setStatus('device_inactive');
       setNotice({ message: '網路錯誤，請稍後再試。', tone: 'error' });
