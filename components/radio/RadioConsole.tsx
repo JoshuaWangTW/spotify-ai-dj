@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type {
   AiDjMode,
@@ -45,6 +45,9 @@ const modeOptions: Array<{ label: string; value: AiDjMode }> = [
   { label: 'Store', value: 'dinner_store_background' },
 ];
 
+const AUTO_TICK_INTERVAL_MS = 30_000;
+const AUTO_TICK_QUEUE_THRESHOLD = 1;
+
 function isApiError(body: unknown): body is ApiError {
   return typeof body === 'object' && body !== null && 'error' in body;
 }
@@ -75,6 +78,13 @@ function buildQueueStatus(segment: RadioSegmentResponse): Record<string, QueueSt
 }
 
 export default function RadioConsole() {
+  const autoTickStateRef = useRef({
+    autoplayQueue: true,
+    pendingFeedback: [] as PendingFeedback[],
+    sessionId: null as string | null,
+    sessionStatus: null as RadioStartOutput['session']['status'] | null,
+  });
+  const autoTickInFlightRef = useRef(false);
   const [autoplayQueue, setAutoplayQueue] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [feedbackStatusByKey, setFeedbackStatusByKey] = useState<Record<string, FeedbackStatus>>(
@@ -93,6 +103,105 @@ export default function RadioConsole() {
 
   const isBusy = isStarting || isTicking || isStopping;
   const currentMode = segment?.plan.mode ?? session?.mode ?? 'jazz_intro';
+
+  const applyTickResult = useCallback((body: RadioTickOutput) => {
+    setSession((current) => (current ? { ...current, mode: body.session.mode } : current));
+    setSegment(body.segment);
+    setTracks(body.segment.tracks);
+    setQueueStatusByUri(buildQueueStatus(body.segment));
+    setPendingFeedback([]);
+  }, []);
+
+  const requestNextSegment = useCallback(async (input: {
+    feedback: PendingFeedback[];
+    sessionId: string;
+  }): Promise<RadioTickOutput> => {
+    const response = await fetch('/api/radio/tick', {
+      body: JSON.stringify({
+        autoplayQueue: autoTickStateRef.current.autoplayQueue,
+        clientTimeIso: new Date().toISOString(),
+        feedback: input.feedback,
+        sessionId: input.sessionId,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    });
+    const body = await readJsonResponse<RadioTickOutput | ApiError>(
+      response,
+      'Radio tick 回傳格式錯誤。',
+    );
+
+    if (!response.ok || isApiError(body)) {
+      throw new Error(getApiErrorMessage(body, 'Radio tick 失敗。'));
+    }
+
+    return body;
+  }, []);
+
+  const autoTickIfQueueIsLow = useCallback(async () => {
+    const state = autoTickStateRef.current;
+
+    if (
+      autoTickInFlightRef.current ||
+      !state.autoplayQueue ||
+      !state.sessionId ||
+      state.sessionStatus !== 'active'
+    ) {
+      return;
+    }
+
+    autoTickInFlightRef.current = true;
+
+    try {
+      const queueResponse = await fetch('/api/spotify/queue-status', { cache: 'no-store' });
+
+      if (!queueResponse.ok) {
+        return;
+      }
+
+      const queueBody = (await queueResponse.json()) as { queueCount?: unknown };
+      const queueCount =
+        typeof queueBody.queueCount === 'number' ? queueBody.queueCount : Number.POSITIVE_INFINITY;
+
+      if (queueCount > AUTO_TICK_QUEUE_THRESHOLD) {
+        return;
+      }
+
+      const body = await requestNextSegment({
+        feedback: state.pendingFeedback,
+        sessionId: state.sessionId,
+      });
+
+      applyTickResult(body);
+      setErrorMessage(null);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '自動補歌失敗。');
+    } finally {
+      autoTickInFlightRef.current = false;
+    }
+  }, [applyTickResult, requestNextSegment]);
+
+  useEffect(() => {
+    autoTickStateRef.current = {
+      autoplayQueue,
+      pendingFeedback,
+      sessionId: session?.id ?? null,
+      sessionStatus: session?.status ?? null,
+    };
+  }, [autoplayQueue, pendingFeedback, session?.id, session?.status]);
+
+  useEffect(() => {
+    if (session?.status !== 'active' || !autoplayQueue) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void autoTickIfQueueIsLow();
+    }, AUTO_TICK_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [autoTickIfQueueIsLow, autoplayQueue, session?.status]);
 
   async function startSession() {
     setErrorMessage(null);
@@ -141,31 +250,7 @@ export default function RadioConsole() {
     setIsTicking(true);
 
     try {
-      const response = await fetch('/api/radio/tick', {
-        body: JSON.stringify({
-          autoplayQueue,
-          clientTimeIso: new Date().toISOString(),
-          feedback: pendingFeedback,
-          sessionId: session.id,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }),
-        headers: { 'Content-Type': 'application/json' },
-        method: 'POST',
-      });
-      const body = await readJsonResponse<RadioTickOutput | ApiError>(
-        response,
-        'Radio tick 回傳格式錯誤。',
-      );
-
-      if (!response.ok || isApiError(body)) {
-        throw new Error(getApiErrorMessage(body, 'Radio tick 失敗。'));
-      }
-
-      setSession((current) => (current ? { ...current, mode: body.session.mode } : current));
-      setSegment(body.segment);
-      setTracks(body.segment.tracks);
-      setQueueStatusByUri(buildQueueStatus(body.segment));
-      setPendingFeedback([]);
+      applyTickResult(await requestNextSegment({ feedback: pendingFeedback, sessionId: session.id }));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Radio tick 失敗。');
     } finally {

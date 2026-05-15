@@ -29,6 +29,30 @@ function getPeriod(hour: number): RadioProgrammingContext['period'] {
   return 'late_night';
 }
 
+function getHourInTimezone(date: Date, timezone?: string): number {
+  if (Number.isNaN(date.getTime())) {
+    return new Date().getHours();
+  }
+
+  if (!timezone) {
+    return date.getHours();
+  }
+
+  try {
+    const formattedHour = new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit',
+      hour12: false,
+      timeZone: timezone,
+    }).format(date);
+
+    const hour = Number.parseInt(formattedHour, 10);
+
+    return Number.isNaN(hour) ? date.getHours() : hour;
+  } catch {
+    return date.getHours();
+  }
+}
+
 function inferMode(
   requestedMode: AiDjMode,
   prompt: string,
@@ -111,7 +135,7 @@ export function determineRadioProgrammingContext(input: {
   timezone?: string;
 }): RadioProgrammingContext {
   const date = input.clientTimeIso ? new Date(input.clientTimeIso) : new Date();
-  const hour = Number.isNaN(date.getTime()) ? new Date().getHours() : date.getHours();
+  const hour = getHourInTimezone(date, input.timezone);
   const period = getPeriod(hour);
   const mode = inferMode(input.mode, input.prompt, period);
 
