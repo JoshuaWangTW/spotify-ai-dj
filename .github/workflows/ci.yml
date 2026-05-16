@@ -2,10 +2,13 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - master
   push:
     branches:
       - master
 
+# Minimal read-only permissions for all jobs.
 permissions:
   contents: read
 
@@ -14,6 +17,13 @@ jobs:
     name: Checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
+    # Only run for pushes to master OR for PRs opened from within this repo
+    # (not from external forks). External fork PRs never have access to secrets,
+    # and their build scripts run in the repo's CI context — skip them entirely.
+    if: |
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
       - name: Checkout
