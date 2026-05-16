@@ -383,29 +383,16 @@ export async function searchSpotifyTracks(
   queries: string[],
 ): Promise<SpotifyTrackCandidate[]> {
   const candidates: SpotifyTrackCandidate[] = [];
+  const candidateGroups: SpotifyTrackCandidate[][] = [];
+  const seenArtists = new Set<string>();
   const seenUris = new Set<string>();
   let recoverableFailureCount = 0;
 
   for (const query of queries) {
-    if (candidates.length >= 8) {
-      break;
-    }
-
     try {
       const queryCandidates = await searchSpotifyTrackCandidatesForQuery(accessToken, query);
 
-      for (const candidate of queryCandidates) {
-        if (seenUris.has(candidate.spotifyUri)) {
-          continue;
-        }
-
-        candidates.push(candidate);
-        seenUris.add(candidate.spotifyUri);
-
-        if (candidates.length >= 8) {
-          break;
-        }
-      }
+      candidateGroups.push(queryCandidates);
     } catch (error) {
       if (error instanceof SpotifyWebApiError) {
         if (isFatalSpotifySearchError(error)) {
@@ -422,6 +409,51 @@ export async function searchSpotifyTracks(
       }
 
       throw new SpotifyWebApiError('SPOTIFY_SEARCH_FAILED', 'Spotify search failed.', 502);
+    }
+  }
+
+  function addCandidate(candidate: SpotifyTrackCandidate) {
+    candidates.push(candidate);
+    seenUris.add(candidate.spotifyUri);
+    seenArtists.add(candidate.artist.toLowerCase());
+  }
+
+  // First pass: take one best match per query and prefer artist diversity.
+  // This prevents a single broad/popular query from filling most of the queue.
+  for (const group of candidateGroups) {
+    if (candidates.length >= 8) {
+      break;
+    }
+
+    const candidate =
+      group.find(
+        (track) => !seenUris.has(track.spotifyUri) && !seenArtists.has(track.artist.toLowerCase()),
+      ) ?? group.find((track) => !seenUris.has(track.spotifyUri));
+
+    if (candidate) {
+      addCandidate(candidate);
+    }
+  }
+
+  // Second pass: if Spotify returned sparse results, fill the remaining slots
+  // while still preferring fresh artists before allowing repeats.
+  for (const preferFreshArtist of [true, false]) {
+    for (const group of candidateGroups) {
+      if (candidates.length >= 8) {
+        break;
+      }
+
+      const candidate = group.find((track) => {
+        if (seenUris.has(track.spotifyUri)) {
+          return false;
+        }
+
+        return !preferFreshArtist || !seenArtists.has(track.artist.toLowerCase());
+      });
+
+      if (candidate) {
+        addCandidate(candidate);
+      }
     }
   }
 

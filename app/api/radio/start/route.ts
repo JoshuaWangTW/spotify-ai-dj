@@ -13,6 +13,7 @@ import { AnthropicLlmError } from '../../../../lib/llm/anthropic';
 import { LlmProviderConfigError, createProviderRadioSegment } from '../../../../lib/llm/provider';
 import { OpenAiRadioError } from '../../../../lib/llm/radio-openai';
 import { determineRadioProgrammingContext } from '../../../../lib/radio/programming';
+import { applyRadioSearchPolicy } from '../../../../lib/radio/search-policy';
 import {
   radioStartInputSchema,
   radioStartOutputSchema,
@@ -113,13 +114,16 @@ export async function POST(request: NextRequest) {
       where: { userId: session.user.id },
     });
 
-    const plan = await createProviderRadioSegment(env, {
-      llmModel: input.data.llmModel,
-      llmProvider: input.data.llmProvider,
-      profile: musicProfile,
-      programming,
-      prompt: input.data.prompt,
-    });
+    const plan = applyRadioSearchPolicy(
+      input.data.prompt,
+      await createProviderRadioSegment(env, {
+        llmModel: input.data.llmModel,
+        llmProvider: input.data.llmProvider,
+        profile: musicProfile,
+        programming,
+        prompt: input.data.prompt,
+      }),
+    );
     let tracks: SpotifyTrackCandidate[] = [];
     let queuedTrackUris: string[] = [];
     let queueWarning: RadioQueueWarning | undefined;
@@ -141,11 +145,7 @@ export async function POST(request: NextRequest) {
         // active device and yields a friendly queueWarning otherwise.
         try {
           if (input.data.deviceId) {
-            await startSpotifyPlayback(
-              token.accessToken,
-              trackUrisToQueue,
-              input.data.deviceId,
-            );
+            await startSpotifyPlayback(token.accessToken, trackUrisToQueue, input.data.deviceId);
           } else {
             await queueSpotifyTracks(token.accessToken, trackUrisToQueue);
           }

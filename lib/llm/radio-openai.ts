@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { buildJoshuaRadioSystemPrompt } from '../ai-dj/persona';
 import type { RadioProgrammingContext } from '../radio/programming';
+import { buildRadioSearchPolicyInstruction } from '../radio/search-policy';
 import {
   radioSegmentJsonSchema,
   radioSegmentPlanOutputSchema,
@@ -175,6 +176,9 @@ export function buildRadioUserContext(input: {
     '',
     '使用者本次 radio session 需求：',
     input.prompt,
+    '',
+    '搜尋政策：',
+    buildRadioSearchPolicyInstruction(input.prompt),
     '',
     '目前播放狀態：',
     input.playbackState ? JSON.stringify(input.playbackState) : '未提供',

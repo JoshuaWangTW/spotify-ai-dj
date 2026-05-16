@@ -167,7 +167,7 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
           type="button"
           onClick={() => void runPlayerCommand('previous')}
           disabled={!playerReady}
-          className="flex h-13 w-13 items-center justify-center text-slate-800 disabled:text-slate-300"
+          className="flex h-[52px] w-[52px] items-center justify-center text-slate-800 disabled:text-slate-300"
           aria-label="Previous"
         >
           <IconPrev size={28} />
@@ -189,7 +189,7 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
           type="button"
           onClick={() => void runPlayerCommand('next')}
           disabled={!playerReady}
-          className="flex h-13 w-13 items-center justify-center text-slate-800 disabled:text-slate-300"
+          className="flex h-[52px] w-[52px] items-center justify-center text-slate-800 disabled:text-slate-300"
           aria-label="Next"
         >
           <IconNext size={28} />

@@ -131,12 +131,9 @@ export function RadioProvider({ children }: ProviderProps) {
 
   // SDK audio-element activator registered by MobileShell.
   const playerActivatorRef = useRef<(() => Promise<void>) | null>(null);
-  const setPlayerActivator = useCallback(
-    (fn: (() => Promise<void>) | null) => {
-      playerActivatorRef.current = fn;
-    },
-    [],
-  );
+  const setPlayerActivator = useCallback((fn: (() => Promise<void>) | null) => {
+    playerActivatorRef.current = fn;
+  }, []);
 
   // Wait up to `timeoutMs` for the SDK to register a deviceId.
   async function waitForDeviceId(timeoutMs: number): Promise<string | null> {

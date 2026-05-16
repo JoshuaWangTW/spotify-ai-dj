@@ -11,8 +11,8 @@ const securityHeaders = [
       // Spotify Web Playback SDK loads a control iframe from sdk.scdn.co.
       // Without frame-src, browsers fall back to default-src 'self' and
       // block it — which kills the SDK and stops playback from ever starting.
-      "frame-src https://sdk.scdn.co",
-      "child-src https://sdk.scdn.co blob:",
+      'frame-src https://sdk.scdn.co',
+      'child-src https://sdk.scdn.co blob:',
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",

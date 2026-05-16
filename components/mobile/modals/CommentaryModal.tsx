@@ -326,27 +326,21 @@ export default function CommentaryModal({ onClose, track }: Props) {
         <button
           type="button"
           onClick={() => void handleLike()}
-          disabled={
-            !currentTrackUri || likeStatus === 'sending' || likeStatus === 'sent'
-          }
+          disabled={!currentTrackUri || likeStatus === 'sending' || likeStatus === 'sent'}
           className={`glass-card flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[13.5px] font-semibold disabled:opacity-60 ${
             likeStatus === 'sent' ? 'text-emerald-700' : 'text-slate-700'
           }`}
           aria-label="Like this track"
         >
           <IconThumbsUp size={16} />
-          {likeStatus === 'sent'
-            ? '已送出'
-            : likeStatus === 'sending'
-              ? '送出中…'
-              : 'Like'}
+          {likeStatus === 'sent' ? '已送出' : likeStatus === 'sending' ? '送出中…' : 'Like'}
         </button>
       </div>
 
       {/* Footer hint */}
       <div className="px-5 pb-10 text-center text-[11.5px] text-slate-400">
         <IconSpark size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> Commentary 由
-        OpenAI 即時生成
+        目前選擇的 AI 模型即時生成
       </div>
     </div>
   );

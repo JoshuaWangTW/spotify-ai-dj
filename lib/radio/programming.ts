@@ -1,4 +1,5 @@
 import type { AiDjMode } from './schema';
+import { isUserDirectedNonCoreRequest } from './search-policy';
 
 export type RadioProgrammingContext = {
   energyTarget: number;
@@ -84,13 +85,22 @@ function inferMode(
     return 'jazz_intro';
   }
 
+  if (isUserDirectedNonCoreRequest(prompt)) {
+    return 'dinner_store_background';
+  }
+
   return period === 'late_night' || period === 'evening' ? 'jazz_intro' : 'work_focus';
 }
 
 function inferSituation(
   mode: RadioProgrammingContext['mode'],
   period: RadioProgrammingContext['period'],
+  prompt: string,
 ): string {
+  if (isUserDirectedNonCoreRequest(prompt)) {
+    return 'user-directed listening';
+  }
+
   if (mode === 'work_focus') {
     return 'focused listening';
   }
@@ -147,7 +157,7 @@ export function determineRadioProgrammingContext(input: {
     hour,
     mode,
     period,
-    situation: inferSituation(mode, period),
+    situation: inferSituation(mode, period, input.prompt),
     timezone: input.timezone,
   };
 }

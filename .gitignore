@@ -13,3 +13,6 @@ out
 tsconfig.tsbuildinfo
 .claude/
 nextjs-migration/
+COMMIT_AND_DEPLOY.cmd
+PUSH_TO_ZEABUR.cmd
+PATCH_PREVIEW.diff
