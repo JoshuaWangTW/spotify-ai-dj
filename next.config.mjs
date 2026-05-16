@@ -7,7 +7,12 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "media-src 'self' blob: data: https://*.spotify.com https://*.scdn.co",
-      "connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://api.openai.com",
+      "connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://*.spotify.com wss://*.spotify.com https://api.openai.com https://api.anthropic.com",
+      // Spotify Web Playback SDK loads a control iframe from sdk.scdn.co.
+      // Without frame-src, browsers fall back to default-src 'self' and
+      // block it — which kills the SDK and stops playback from ever starting.
+      "frame-src https://sdk.scdn.co",
+      "child-src https://sdk.scdn.co blob:",
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
