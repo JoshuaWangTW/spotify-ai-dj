@@ -16,6 +16,7 @@ import {
 } from 'react';
 
 import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
+import { speakBrowserText, stopBrowserSpeech } from '../player/browserSpeech';
 import {
   DEFAULT_OPENAI_TTS_VOICE,
   openAiTtsVoiceSchema,
@@ -205,6 +206,9 @@ export function RadioProvider({ children }: ProviderProps) {
         djIntroAudioUrlRef.current = null;
       }
     }
+    if (!v) {
+      stopBrowserSpeech();
+    }
   }, []);
 
   const setTtsVoice = useCallback((voice: OpenAiTtsVoice) => {
@@ -223,6 +227,7 @@ export function RadioProvider({ children }: ProviderProps) {
         URL.revokeObjectURL(djIntroAudioUrlRef.current);
         djIntroAudioUrlRef.current = null;
       }
+      stopBrowserSpeech();
     },
     [],
   );
@@ -245,7 +250,15 @@ export function RadioProvider({ children }: ProviderProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, voice: ttsVoiceRef.current }),
       });
-      if (!response.ok) return;
+      if (response.status === 204) {
+        await speakBrowserText(text);
+        return;
+      }
+
+      if (!response.ok) {
+        await speakBrowserText(text);
+        return;
+      }
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);

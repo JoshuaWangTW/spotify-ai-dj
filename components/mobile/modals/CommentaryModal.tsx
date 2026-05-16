@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { AiDjCommentaryOutput } from '../../../lib/ai-dj/commentary-schema';
 import { readStoredLlmSelection } from '../../llm/useLlmModelPreference';
+import { speakBrowserText, stopBrowserSpeech } from '../../player/browserSpeech';
 import type { TrackState } from '../../player/useSpotifyWebPlayback';
 import { useRadio } from '../RadioContext';
 import { findMode } from '../modes';
@@ -101,6 +102,7 @@ export default function CommentaryModal({ onClose, track }: Props) {
         URL.revokeObjectURL(audioUrlRef.current);
         audioUrlRef.current = null;
       }
+      stopBrowserSpeech();
     },
     [],
   );
@@ -113,6 +115,7 @@ export default function CommentaryModal({ onClose, track }: Props) {
         URL.revokeObjectURL(audioUrlRef.current);
         audioUrlRef.current = null;
       }
+      stopBrowserSpeech();
       setSpeaking(false);
       return;
     }
@@ -128,6 +131,14 @@ export default function CommentaryModal({ onClose, track }: Props) {
           voice: ttsVoice,
         }),
       });
+      const speechText = `${commentary.commentary}\n聆聽重點：${commentary.listeningPoints.join('；')}`;
+
+      if (r.status === 204) {
+        await speakBrowserText(speechText);
+        setSpeaking(false);
+        return;
+      }
+
       if (!r.ok) throw new Error('TTS 產生失敗');
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);

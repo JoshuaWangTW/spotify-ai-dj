@@ -12,6 +12,7 @@ import type {
 import type { SpotifyTrackCandidate } from '../../lib/spotify-types';
 import LlmModelPicker from '../llm/LlmModelPicker';
 import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
+import { speakBrowserText, stopBrowserSpeech } from '../player/browserSpeech';
 import NowPlaying from '../player/NowPlaying';
 import QueueList from '../queue/QueueList';
 
@@ -131,6 +132,7 @@ export default function RadioConsole() {
     current.audio.onerror = null;
     URL.revokeObjectURL(current.objectUrl);
     djIntroAudioRef.current = null;
+    stopBrowserSpeech();
   }, []);
 
   useEffect(() => stopDjIntroTts, [stopDjIntroTts]);
@@ -150,7 +152,13 @@ export default function RadioConsole() {
           method: 'POST',
         });
 
+        if (response.status === 204) {
+          await speakBrowserText(text);
+          return;
+        }
+
         if (!response.ok) {
+          await speakBrowserText(text);
           return;
         }
 

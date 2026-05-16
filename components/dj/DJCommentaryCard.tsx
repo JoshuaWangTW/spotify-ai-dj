@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 
 import type { AiDjCommentaryOutput } from '../../lib/ai-dj/commentary-schema';
+import { speakBrowserText, stopBrowserSpeech } from '../player/browserSpeech';
 
 type CommentaryDepth = 'short' | 'deep';
 
@@ -83,6 +84,14 @@ export default function DJCommentaryCard({ artistName, mode, trackName }: DJComm
         }),
       });
 
+      const speechText = `${commentary.commentary}\n聆聽重點：${commentary.listeningPoints.join('；')}`;
+
+      if (response.status === 204) {
+        await speakBrowserText(speechText);
+        setIsSpeaking(false);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error('導讀語音產生失敗。');
       }
@@ -115,6 +124,7 @@ export default function DJCommentaryCard({ artistName, mode, trackName }: DJComm
     audioRef.current.pause();
     audioRef.current.currentTime = 0;
     audioRef.current = null;
+    stopBrowserSpeech();
     setIsSpeaking(false);
   }
 

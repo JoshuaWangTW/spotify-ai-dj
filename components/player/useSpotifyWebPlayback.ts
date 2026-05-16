@@ -8,6 +8,7 @@ import {
   type DjCue,
   type DjSchedulerTrack,
 } from '../../lib/dj/scheduler';
+import { speakBrowserText } from './browserSpeech';
 
 type PlaybackStatus =
   | 'loading'
@@ -131,24 +132,6 @@ function playAudioElement(audio: HTMLAudioElement): Promise<void> {
   });
 }
 
-function speakBrowserText(text: string): Promise<void> {
-  if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'zh-TW';
-    utterance.rate = 0.96;
-    utterance.pitch = 1;
-    utterance.onend = () => resolve();
-    utterance.onerror = () => resolve();
-
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-  });
-}
-
 async function playBrowserDjCue(cue: DjCue): Promise<void> {
   if (cue.audioUrl) {
     await playAudioElement(new Audio(cue.audioUrl));
@@ -180,7 +163,6 @@ async function prefetchBrowserDjCue(input: {
         hour: new Date().getHours(),
         nextTrack: serializeDjTrack(input.nextTrack),
         prevTrack: serializeDjTrack(input.currentTrack),
-        voiceId: 'browser-speech',
       }),
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
@@ -521,6 +503,52 @@ export function useSpotifyWebPlayback(options: UseSpotifyWebPlaybackOptions = {}
     },
     [syncCurrentPlayerState],
   );
+
+  useEffect(() => {
+    if (!track || typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
+      return;
+    }
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      album: track.album,
+      artist: track.artist,
+      artwork: track.albumImageUrl
+        ? [
+            {
+              sizes: '640x640',
+              src: track.albumImageUrl,
+              type: 'image/jpeg',
+            },
+          ]
+        : [],
+      title: track.title,
+    });
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+    navigator.mediaSession.setActionHandler('play', () => {
+      if (!isPlaying) {
+        void runPlayerCommand('toggle');
+      }
+    });
+    navigator.mediaSession.setActionHandler('pause', () => {
+      if (isPlaying) {
+        void runPlayerCommand('toggle');
+      }
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      void runPlayerCommand('previous');
+    });
+    navigator.mediaSession.setActionHandler('nexttrack', () => {
+      void runPlayerCommand('next');
+    });
+
+    return () => {
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.setActionHandler('previoustrack', null);
+      navigator.mediaSession.setActionHandler('nexttrack', null);
+    };
+  }, [isPlaying, runPlayerCommand, track]);
 
   // Unlock the SDK's audio element. Must be called inside a user gesture
   // (e.g. button onClick) before the first remote play so the browser

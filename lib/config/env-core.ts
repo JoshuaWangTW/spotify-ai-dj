@@ -40,6 +40,7 @@ const serverEnvSchema = z
     AZURE_SPEECH_KEY: optionalSecretSchema,
     AZURE_SPEECH_REGION: z.string().trim().min(1).max(80).optional(),
     AUDIO_STORAGE_PROVIDER: z.enum(['zeabur-volume', 'r2', 'vercel-blob']).default('zeabur-volume'),
+    DJ_AUDIO_CACHE_DIR: z.string().trim().min(1).max(260).optional(),
     R2_ACCOUNT_ID: optionalSecretSchema,
     R2_ACCESS_KEY_ID: optionalSecretSchema,
     R2_SECRET_ACCESS_KEY: optionalSecretSchema,
