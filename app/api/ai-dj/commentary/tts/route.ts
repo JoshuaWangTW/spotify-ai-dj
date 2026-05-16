@@ -8,11 +8,9 @@ import {
 } from '../../../../../lib/ai-dj/tts-schema';
 import { getSpotifySession } from '../../../../../lib/auth/session';
 import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
+import { synthesizeWithFallback } from '../../../../../lib/tts/with-fallback';
 
 export const runtime = 'nodejs';
-
-const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
-const OPENAI_TTS_TIMEOUT_MS = 20_000;
 
 const commentaryTtsInputSchema = z
   .object({
@@ -20,6 +18,13 @@ const commentaryTtsInputSchema = z
     voice: openAiTtsVoiceSchema.default(DEFAULT_OPENAI_TTS_VOICE),
   })
   .strict();
+
+const voiceMap = {
+  coral: 'zh-TW-HsiaoChenNeural',
+  marin: 'zh-TW-YunJheNeural',
+  nova: 'zh-TW-HsiaoChenNeural',
+  shimmer: 'zh-TW-HsiaoYuNeural',
+} satisfies Record<z.infer<typeof openAiTtsVoiceSchema>, string>;
 
 function jsonError(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -54,7 +59,7 @@ export async function POST(request: NextRequest) {
 
   const rateLimitError = await rateLimitRequest({
     key: `ai-dj:tts:${session.user.id}`,
-    limit: 30,
+    limit: 120,
     windowMs: 10 * 60 * 1000,
   });
 
@@ -62,18 +67,32 @@ export async function POST(request: NextRequest) {
     return rateLimitError;
   }
 
-  let apiKey: string;
-
   try {
     const env = getServerEnv();
-    if (!env.OPENAI_API_KEY) {
-      return jsonError(
-        'OPENAI_API_KEY_MISSING',
-        'OpenAI API key is not configured on the server.',
-        500,
-      );
+    const tts = await synthesizeWithFallback({
+      env,
+      text: input.data.text,
+      timeoutMs: 6_000,
+      voiceId: voiceMap[input.data.voice],
+    });
+
+    if (!tts.result) {
+      return new NextResponse(null, {
+        status: 204,
+        headers: {
+          'X-DJ-TTS-Fallback': 'browser',
+        },
+      });
     }
-    apiKey = env.OPENAI_API_KEY;
+
+    return new NextResponse(tts.result.audioBuffer, {
+      headers: {
+        'Cache-Control': 'no-store',
+        'Content-Type': 'audio/mpeg',
+        'X-DJ-TTS-Provider': tts.provider,
+      },
+      status: 200,
+    });
   } catch (error) {
     if (error instanceof EnvValidationError) {
       return jsonError(
@@ -82,48 +101,12 @@ export async function POST(request: NextRequest) {
         500,
       );
     }
-    throw error;
-  }
 
-  const abortController = new AbortController();
-  const timeout = setTimeout(() => abortController.abort(), OPENAI_TTS_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(OPENAI_TTS_URL, {
-      method: 'POST',
+    return new NextResponse(null, {
+      status: 204,
       headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini-tts',
-        voice: input.data.voice,
-        response_format: 'mp3',
-        input: input.data.text,
-      }),
-      signal: abortController.signal,
-    });
-
-    if (!response.ok) {
-      return jsonError('OPENAI_TTS_REQUEST_FAILED', 'OpenAI TTS request failed.', 502);
-    }
-
-    const audioBuffer = await response.arrayBuffer();
-
-    return new NextResponse(audioBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Cache-Control': 'no-store',
+        'X-DJ-TTS-Fallback': 'browser',
       },
     });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      return jsonError('OPENAI_TTS_TIMEOUT', 'OpenAI TTS request timed out.', 504);
-    }
-
-    return jsonError('OPENAI_TTS_REQUEST_FAILED', 'OpenAI TTS request failed.', 502);
-  } finally {
-    clearTimeout(timeout);
   }
 }

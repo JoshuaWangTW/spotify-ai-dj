@@ -29,9 +29,10 @@ const djPrefetchInputSchema = z
 
 const djPrefetchOutputSchema = z
   .object({
-    audioUrl: z.string().url().nullable(),
+    audioUrl: z.string().trim().min(1).max(240).nullable(),
     cached: z.boolean(),
     ok: z.literal(true),
+    provider: z.enum(['azure', 'browser-only', 'cache', 'edge-tts']),
     script: z.string().trim().min(1).max(240),
   })
   .strict();

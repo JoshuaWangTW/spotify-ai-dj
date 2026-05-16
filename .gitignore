@@ -10,6 +10,7 @@ out
 .env*.local
 !.env.example
 .pnpm-store
+.cache/
 tsconfig.tsbuildinfo
 .claude/
 nextjs-migration/

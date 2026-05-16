@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 import { bucketHour, makeDjCacheKey, makeTtsScriptHash } from '../lib/dj/cache';
+import { tryFastPathDjScript } from '../lib/dj/fast-path';
 
 function testHourBuckets() {
   assert.equal(bucketHour(0), 0);
@@ -57,8 +58,31 @@ function testTtsHashUsesScriptAndVoiceOnly() {
   assert.notEqual(first, differentVoice);
 }
 
+function testFastPathBeforeLlm() {
+  const script = tryFastPathDjScript({
+    nextTrack: {
+      artist: 'Lamp',
+      artistUris: ['spotify:artist:lamp'],
+      id: 'next',
+      title: 'Next',
+      uri: 'spotify:track:next',
+    },
+    prevTrack: {
+      artist: 'Lamp',
+      artistUris: ['spotify:artist:lamp'],
+      id: 'prev',
+      title: 'Prev',
+      uri: 'spotify:track:prev',
+    },
+  });
+
+  assert.equal(typeof script, 'string');
+  assert.ok(script && script.length > 20);
+}
+
 testHourBuckets();
 testDjCacheKeyIgnoresRealtimeContext();
 testTtsHashUsesScriptAndVoiceOnly();
+testFastPathBeforeLlm();
 
 console.log('dj cache tests passed');

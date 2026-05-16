@@ -1,7 +1,14 @@
+import { getServerEnv } from '../config/env';
 import { prisma } from '../db/prisma';
+import { getDjAudioUrl, hasDjAudioCache, writeDjAudioCache } from '../tts/file-cache';
+import { synthesizeWithFallback } from '../tts/with-fallback';
 import { makeDjCacheKey, makeTtsScriptHash } from './cache';
+import { tryFastPathDjScript } from './fast-path';
+import { generateDjScript } from './generate';
 import { getDjPersona } from './personas';
 import { buildRuleBasedDjCue, type DjSchedulerTrack } from './scheduler';
+
+const DEFAULT_DJ_TTS_VOICE = 'zh-TW-HsiaoChenNeural';
 
 export type PrefetchTrack = {
   artist: string;
@@ -23,6 +30,7 @@ export type PrefetchNextDjInput = {
 export type PrefetchNextDjOutput = {
   audioUrl: string | null;
   cached: boolean;
+  provider: 'azure' | 'browser-only' | 'cache' | 'edge-tts';
   script: string;
 };
 
@@ -44,6 +52,52 @@ function isUniqueConstraintError(error: unknown): boolean {
     'code' in error &&
     (error as { code?: unknown }).code === 'P2002'
   );
+}
+
+async function createScript(input: {
+  nextTrack: PrefetchTrack;
+  personaId: string;
+  prevTrack: PrefetchTrack;
+  userId: string;
+}): Promise<string> {
+  const fastPathScript = tryFastPathDjScript({
+    nextTrack: input.nextTrack,
+    prevTrack: input.prevTrack,
+  });
+
+  if (fastPathScript) {
+    return fastPathScript;
+  }
+
+  const fallbackScript = buildRuleBasedDjCue({
+    currentTrack: toSchedulerTrack(input.prevTrack),
+    nextTrack: toSchedulerTrack(input.nextTrack),
+  }).script;
+
+  try {
+    const recentScripts = await prisma.djScriptCache.findMany({
+      orderBy: {
+        lastUsedAt: 'desc',
+      },
+      select: {
+        script: true,
+      },
+      take: 5,
+      where: {
+        userId: input.userId,
+      },
+    });
+
+    return await generateDjScript({
+      env: getServerEnv(),
+      nextTrack: input.nextTrack,
+      persona: getDjPersona(input.personaId),
+      prevTrack: input.prevTrack,
+      recentScripts: recentScripts.map((item: { script: string }) => item.script),
+    });
+  } catch {
+    return fallbackScript;
+  }
 }
 
 async function readOrCreateScript(
@@ -77,16 +131,13 @@ async function readOrCreateScript(
     return { cached: true, script: cached.script };
   }
 
-  const cue = buildRuleBasedDjCue({
-    currentTrack: toSchedulerTrack(input.prevTrack),
-    nextTrack: toSchedulerTrack(input.nextTrack),
-  });
+  const script = await createScript(input);
 
   try {
     await prisma.djScriptCache.create({
       data: {
         cacheKey,
-        script: cue.script,
+        script,
         userId: input.userId,
       },
     });
@@ -110,24 +161,24 @@ async function readOrCreateScript(
     return { cached: true, script: racedCache.script };
   }
 
-  return { cached: false, script: cue.script };
+  return { cached: false, script };
 }
 
 async function readCachedAudio(input: {
   script: string;
   voiceId: string;
-}): Promise<{ audioUrl: string | null; cached: boolean }> {
+}): Promise<{ audioUrl: string | null; cached: boolean; scriptHash: string }> {
   const scriptHash = makeTtsScriptHash({
     scriptText: input.script,
     voiceId: input.voiceId,
   });
   const cached = await prisma.ttsAudioCache.findUnique({ where: { scriptHash } });
 
-  if (!cached) {
-    return { audioUrl: null, cached: false };
+  if (!cached || !(await hasDjAudioCache(scriptHash))) {
+    return { audioUrl: null, cached: false, scriptHash };
   }
 
-  await prisma.ttsAudioCache.update({
+  const updated = await prisma.ttsAudioCache.update({
     data: {
       hitCount: {
         increment: 1,
@@ -139,25 +190,106 @@ async function readCachedAudio(input: {
     },
   });
 
-  return { audioUrl: cached.audioUrl, cached: true };
+  return { audioUrl: updated.audioUrl, cached: true, scriptHash };
 }
 
-export async function prefetchNextDJ(input: PrefetchNextDjInput): Promise<PrefetchNextDjOutput> {
-  const scriptResult = await readOrCreateScript({
-    hour: input.hour ?? new Date().getHours(),
-    nextTrack: input.nextTrack,
-    personaId: getDjPersona(input.personaId).id,
-    prevTrack: input.prevTrack,
-    userId: input.userId,
+async function synthesizeAndCacheAudio(input: {
+  script: string;
+  scriptHash: string;
+  voiceId: string;
+}): Promise<{ audioUrl: string | null; provider: PrefetchNextDjOutput['provider'] }> {
+  const env = getServerEnv();
+  const ttsResult = await synthesizeWithFallback({
+    env,
+    text: input.script,
+    timeoutMs: 6_000,
+    voiceId: input.voiceId,
   });
-  const audioResult = await readCachedAudio({
-    script: scriptResult.script,
-    voiceId: input.voiceId ?? 'browser-speech',
+
+  if (!ttsResult.result) {
+    return {
+      audioUrl: null,
+      provider: 'browser-only',
+    };
+  }
+
+  const stored = await writeDjAudioCache({
+    audioBuffer: ttsResult.result.audioBuffer,
+    scriptHash: input.scriptHash,
+  });
+  const audioUrl = getDjAudioUrl(input.scriptHash);
+
+  await prisma.ttsAudioCache.upsert({
+    create: {
+      audioUrl,
+      byteSize: stored.byteSize,
+      duration: ttsResult.result.duration,
+      scriptHash: input.scriptHash,
+      voiceId: input.voiceId,
+    },
+    update: {
+      audioUrl,
+      byteSize: stored.byteSize,
+      duration: ttsResult.result.duration,
+      hitCount: {
+        increment: 1,
+      },
+      lastUsedAt: new Date(),
+      voiceId: input.voiceId,
+    },
+    where: {
+      scriptHash: input.scriptHash,
+    },
   });
 
   return {
-    audioUrl: audioResult.audioUrl,
-    cached: scriptResult.cached || audioResult.cached,
+    audioUrl,
+    provider: ttsResult.provider,
+  };
+}
+
+export async function prefetchNextDJ(input: PrefetchNextDjInput): Promise<PrefetchNextDjOutput> {
+  const user = await prisma.user.findUnique({
+    select: {
+      djPersonaId: true,
+    },
+    where: {
+      id: input.userId,
+    },
+  });
+  const personaId = getDjPersona(input.personaId ?? user?.djPersonaId).id;
+  const scriptResult = await readOrCreateScript({
+    hour: input.hour ?? new Date().getHours(),
+    nextTrack: input.nextTrack,
+    personaId,
+    prevTrack: input.prevTrack,
+    userId: input.userId,
+  });
+  const voiceId = input.voiceId ?? DEFAULT_DJ_TTS_VOICE;
+  const audioResult = await readCachedAudio({
+    script: scriptResult.script,
+    voiceId,
+  });
+
+  if (audioResult.cached) {
+    return {
+      audioUrl: audioResult.audioUrl,
+      cached: true,
+      provider: 'cache',
+      script: scriptResult.script,
+    };
+  }
+
+  const synthesized = await synthesizeAndCacheAudio({
+    script: scriptResult.script,
+    scriptHash: audioResult.scriptHash,
+    voiceId,
+  });
+
+  return {
+    audioUrl: synthesized.audioUrl,
+    cached: scriptResult.cached,
+    provider: synthesized.provider,
     script: scriptResult.script,
   };
 }

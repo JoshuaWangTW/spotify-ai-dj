@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 import LlmModelPicker from '../../components/llm/LlmModelPicker';
 import type { ANTHROPIC_MODEL_OPTIONS, OPENAI_MODEL_OPTIONS } from '../../lib/llm/model-options';
 
@@ -15,6 +17,11 @@ type SettingsData = {
   openAiConfigured: boolean;
   spotifyConfigured: boolean;
 } | null;
+
+type PersonaOption = {
+  id: string;
+  name: string;
+};
 
 function StatusRow({ configured, label }: { configured: boolean; label: string }) {
   return (
@@ -35,6 +42,67 @@ function StatusRow({ configured, label }: { configured: boolean; label: string }
 
 export default function SettingsClient({ initialData }: { initialData: SettingsData }) {
   const hasEnvIssues = !initialData?.ok;
+  const [personaId, setPersonaId] = useState('midnight');
+  const [personas, setPersonas] = useState<PersonaOption[]>([]);
+  const [personaStatus, setPersonaStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetch('/api/settings/persona', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { personaId?: unknown; personas?: unknown } | null) => {
+        if (cancelled || !body) {
+          return;
+        }
+
+        if (typeof body.personaId === 'string') {
+          setPersonaId(body.personaId);
+        }
+
+        if (Array.isArray(body.personas)) {
+          setPersonas(
+            body.personas.filter(
+              (persona): persona is PersonaOption =>
+                typeof persona === 'object' &&
+                persona !== null &&
+                typeof (persona as PersonaOption).id === 'string' &&
+                typeof (persona as PersonaOption).name === 'string',
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPersonaStatus('error');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function updatePersona(nextPersonaId: string) {
+    setPersonaId(nextPersonaId);
+    setPersonaStatus('saving');
+
+    try {
+      const response = await fetch('/api/settings/persona', {
+        body: JSON.stringify({ personaId: nextPersonaId }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT',
+      });
+
+      if (!response.ok) {
+        throw new Error('Persona update failed.');
+      }
+
+      setPersonaStatus('saved');
+    } catch {
+      setPersonaStatus('error');
+    }
+  }
 
   return (
     <div className="glass-panel space-y-5 rounded-lg p-6">
@@ -72,6 +140,40 @@ export default function SettingsClient({ initialData }: { initialData: SettingsD
 
       <div className="rounded-lg border border-slate-200/80 bg-white/40 p-4">
         <LlmModelPicker />
+      </div>
+
+      <div className="rounded-lg border border-slate-200/80 bg-white/40 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">DJ persona</h3>
+            <p className="mt-1 text-sm text-slate-500">影響預生成串場詞的語氣與說話方式。</p>
+          </div>
+          <span className="text-xs text-slate-400">
+            {personaStatus === 'saving'
+              ? '儲存中'
+              : personaStatus === 'saved'
+                ? '已儲存'
+                : personaStatus === 'error'
+                  ? '儲存失敗'
+                  : ''}
+          </span>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {personas.map((persona) => (
+            <button
+              className={`rounded-md border px-3 py-2 text-left text-sm font-medium ${
+                personaId === persona.id
+                  ? 'border-sky-700 bg-sky-700 text-white'
+                  : 'border-slate-300 bg-white/70 text-slate-700 hover:border-sky-500 hover:bg-sky-50'
+              }`}
+              key={persona.id}
+              onClick={() => void updatePersona(persona.id)}
+              type="button"
+            >
+              {persona.name}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
