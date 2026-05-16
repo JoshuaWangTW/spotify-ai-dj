@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getSpotifySession } from '../../../../lib/auth/session';
+import {
+  getValidSpotifyAccessToken,
+  SpotifyAccessTokenError,
+} from '../../../../lib/auth/spotify-access-token';
 import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
@@ -13,6 +17,10 @@ import {
   musicAssistantChatOutputSchema,
   type MusicAssistantOutput,
 } from '../../../../lib/music-assistant/schema';
+import {
+  fetchSpotifyRecentlyPlayed,
+  fetchSpotifyTopTracks,
+} from '../../../../lib/spotify';
 
 export const runtime = 'nodejs';
 
@@ -82,7 +90,9 @@ export async function POST(request: NextRequest) {
       return jsonError('CONVERSATION_NOT_FOUND', 'Assistant conversation was not found.', 404);
     }
 
-    const [musicProfile, memory, recentMessages] = await Promise.all([
+    const spotifyToken = await getValidSpotifyAccessToken(request).catch(() => null);
+
+    const [musicProfile, memory, recentMessages, topTracks, recentlyPlayed] = await Promise.all([
       prisma.musicProfile.findUnique({
         select: {
           avoidSummary: true,
@@ -114,13 +124,24 @@ export async function POST(request: NextRequest) {
         take: 10,
         where: { conversationId: conversation.id },
       }),
+      spotifyToken ? fetchSpotifyTopTracks(spotifyToken.accessToken) : Promise.resolve(null),
+      spotifyToken ? fetchSpotifyRecentlyPlayed(spotifyToken.accessToken) : Promise.resolve(null),
     ]);
+
+    const spotifyHistory =
+      topTracks || recentlyPlayed
+        ? {
+            recentlyPlayed: recentlyPlayed ?? [],
+            topTracks: topTracks ?? [],
+          }
+        : null;
 
     const assistantOutput = await createOpenAiMusicAssistantReply(env.OPENAI_API_KEY, {
       memory,
       message: input.data.message,
       profile: musicProfile,
       recentMessages: recentMessages.reverse(),
+      spotifyHistory,
     });
     const profilePatch = buildProfileSummaryPatch(assistantOutput);
 
@@ -227,6 +248,10 @@ export async function POST(request: NextRequest) {
 
     if (isPrismaError(error)) {
       return jsonError('DATABASE_REQUEST_FAILED', 'Database request failed.', 500);
+    }
+
+    if (error instanceof SpotifyAccessTokenError) {
+      return jsonError(error.code, error.message, error.status);
     }
 
     if (error instanceof EnvValidationError) {

@@ -65,6 +65,11 @@ type MusicMemoryContext = {
   type: string;
 };
 
+type SpotifyHistoryContext = {
+  recentlyPlayed: Array<{ artist: string; playedAt: string; title: string }>;
+  topTracks: Array<{ artist: string; popularity: number; title: string }>;
+};
+
 export class OpenAiMusicAssistantError extends Error {
   readonly code: string;
   readonly status: number;
@@ -148,10 +153,11 @@ function buildAssistantSystemPrompt(): string {
   return [
     '你是 Spotify AI DJ 的音樂助手，像 Hermes-style assistant：會透過對話理解使用者，但記憶必須可審計、可修正、不可神秘化。',
     '你的任務是陪使用者聊音樂、釐清偏好、學習目標、避免項與使用情境，並產生可供日後推薦使用的 memory candidates。',
-    '不要宣稱你能直接讀取 Spotify 歷史歌單。沒有資料時，就透過問題慢慢建立偏好。',
+    '使用者的 Spotify 收聽資料（最近播放、中期 top tracks）已包含在 context 中，可直接參考並主動分析，無需再詢問使用者是否提供。',
+    '若 Spotify 資料為空，再透過問題慢慢建立偏好。',
     '不要輸出歌詞，不要下載、代理、轉存 Spotify 音檔。',
     '不要把 Spotify content 用於模型訓練或 fine-tuning。',
-    '記憶只能來自使用者明確說出的偏好或本次對話中高度可信的結論。',
+    '記憶只能來自使用者明確說出的偏好、Spotify 資料中高度可信的模式，或本次對話的明確結論。',
     '如果資訊不明確，少量追問，不要硬塞記憶。',
     'reply 使用繁體中文，語氣自然、簡潔、像懂音樂的助理。',
     '輸出必須符合指定 JSON schema。',
@@ -163,8 +169,9 @@ function buildAssistantUserContext(input: {
   message: string;
   profile?: MusicProfileContext | null;
   recentMessages: ConversationMessageContext[];
+  spotifyHistory?: SpotifyHistoryContext | null;
 }): string {
-  return [
+  const parts = [
     'MusicProfile：',
     JSON.stringify({
       avoidSummary: input.profile?.avoidSummary ?? '',
@@ -176,12 +183,32 @@ function buildAssistantUserContext(input: {
     '既有記憶：',
     input.memory.length > 0 ? JSON.stringify(input.memory) : '[]',
     '',
+  ];
+
+  if (input.spotifyHistory) {
+    parts.push(
+      'Spotify Top Tracks（近 6 個月）：',
+      input.spotifyHistory.topTracks.length > 0
+        ? JSON.stringify(input.spotifyHistory.topTracks)
+        : '[]',
+      '',
+      'Spotify 最近播放：',
+      input.spotifyHistory.recentlyPlayed.length > 0
+        ? JSON.stringify(input.spotifyHistory.recentlyPlayed)
+        : '[]',
+      '',
+    );
+  }
+
+  parts.push(
     '最近對話：',
     input.recentMessages.length > 0 ? JSON.stringify(input.recentMessages) : '[]',
     '',
     '使用者新訊息：',
     input.message,
-  ].join('\n');
+  );
+
+  return parts.join('\n');
 }
 
 export async function createOpenAiMusicAssistantReply(
@@ -191,6 +218,7 @@ export async function createOpenAiMusicAssistantReply(
     message: string;
     profile?: MusicProfileContext | null;
     recentMessages: ConversationMessageContext[];
+    spotifyHistory?: SpotifyHistoryContext | null;
   },
 ): Promise<MusicAssistantOutput> {
   const abortController = new AbortController();
@@ -205,7 +233,13 @@ export async function createOpenAiMusicAssistantReply(
             role: 'system',
           },
           {
-            content: buildAssistantUserContext(input),
+            content: buildAssistantUserContext({
+            memory: input.memory,
+            message: input.message,
+            profile: input.profile,
+            recentMessages: input.recentMessages,
+            spotifyHistory: input.spotifyHistory,
+          }),
             role: 'user',
           },
         ],

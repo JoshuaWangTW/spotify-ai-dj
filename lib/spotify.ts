@@ -26,6 +26,7 @@ export const SPOTIFY_MVP_SCOPES = [
   'user-modify-playback-state',
   'user-read-currently-playing',
   'user-top-read',
+  'user-read-recently-played',
 ] as const;
 
 const spotifyTokenResponseSchema = z.object({
@@ -456,6 +457,114 @@ export async function fetchSpotifyPlaybackState(
     );
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+const spotifyTopTrackSchema = z.object({
+  name: z.string(),
+  artists: z.array(z.object({ name: z.string() })),
+  popularity: z.number().int().min(0).max(100).default(0),
+});
+
+const spotifyTopTracksResponseSchema = z.object({
+  items: z.array(spotifyTopTrackSchema),
+});
+
+const spotifyRecentlyPlayedSchema = z.object({
+  items: z.array(
+    z.object({
+      played_at: z.string(),
+      track: z.object({
+        name: z.string(),
+        artists: z.array(z.object({ name: z.string() })),
+      }),
+    }),
+  ),
+});
+
+export type SpotifyTrackSummary = {
+  artist: string;
+  popularity: number;
+  title: string;
+};
+
+export type SpotifyRecentTrack = {
+  artist: string;
+  playedAt: string;
+  title: string;
+};
+
+export type SpotifyListeningHistory = {
+  recentlyPlayed: SpotifyRecentTrack[];
+  topTracks: SpotifyTrackSummary[];
+};
+
+export async function fetchSpotifyTopTracks(
+  accessToken: string,
+  limit = 20,
+): Promise<SpotifyTrackSummary[] | null> {
+  try {
+    const url = new URL('https://api.spotify.com/v1/me/top/tracks');
+    url.searchParams.set('time_range', 'medium_term');
+    url.searchParams.set('limit', String(limit));
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(SPOTIFY_REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = (await response.json()) as unknown;
+    const parsed = spotifyTopTracksResponseSchema.safeParse(json);
+
+    if (!parsed.success) {
+      return null;
+    }
+
+    return parsed.data.items.map((track) => ({
+      artist: track.artists.map((a) => a.name).join(', '),
+      popularity: track.popularity,
+      title: track.name,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchSpotifyRecentlyPlayed(
+  accessToken: string,
+  limit = 20,
+): Promise<SpotifyRecentTrack[] | null> {
+  try {
+    const url = new URL('https://api.spotify.com/v1/me/player/recently-played');
+    url.searchParams.set('limit', String(limit));
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(SPOTIFY_REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = (await response.json()) as unknown;
+    const parsed = spotifyRecentlyPlayedSchema.safeParse(json);
+
+    if (!parsed.success) {
+      return null;
+    }
+
+    return parsed.data.items.map((item) => ({
+      artist: item.track.artists.map((a) => a.name).join(', '),
+      playedAt: item.played_at,
+      title: item.track.name,
+    }));
+  } catch {
+    return null;
   }
 }
 
