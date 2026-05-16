@@ -4,24 +4,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { AiDjCommentaryOutput } from '../../../lib/ai-dj/commentary-schema';
-import { useSpotifyWebPlayback } from '../../player/useSpotifyWebPlayback';
+import type { TrackState } from '../../player/useSpotifyWebPlayback';
 import { useRadio } from '../RadioContext';
 import { findMode } from '../modes';
-import {
-  IconChevronLeft, IconMore, IconPause, IconPlay, IconSpark, IconThumbsUp,
-} from '../icons';
+import { IconChevronLeft, IconMore, IconPause, IconPlay, IconSpark, IconThumbsUp } from '../icons';
 
 type ApiError = { error?: { message?: string } };
-function isApiError(b: unknown): b is ApiError { return !!b && typeof b === 'object' && 'error' in b; }
+function isApiError(b: unknown): b is ApiError {
+  return !!b && typeof b === 'object' && 'error' in b;
+}
 
 type Props = {
   onClose: () => void;
+  track: TrackState | null;
 };
 
-export default function CommentaryModal({ onClose }: Props) {
+export default function CommentaryModal({ onClose, track }: Props) {
   const { segment } = useRadio();
-  const { track } = useSpotifyWebPlayback();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
   // Source of truth for what we ask AI about: real SDK track first,
   // then segment's lead track.
@@ -37,31 +38,34 @@ export default function CommentaryModal({ onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [speaking, setSpeaking] = useState(false);
 
-  const fetchCommentary = useCallback(async (d: 'short' | 'deep') => {
-    if (!trackName || !artistName) {
-      setError('沒有可導聆的曲目 — 請先 Start 一個 session 並開始播放。');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await fetch('/api/ai-dj/commentary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackName, artistName, mode, depth: d }),
-      });
-      const body = (await r.json()) as AiDjCommentaryOutput | ApiError;
-      if (!r.ok || isApiError(body)) {
-        throw new Error((body as ApiError).error?.message ?? '導聆產生失敗。');
+  const fetchCommentary = useCallback(
+    async (d: 'short' | 'deep') => {
+      if (!trackName || !artistName) {
+        setError('沒有可導聆的曲目 — 請先 Start 一個 session 並開始播放。');
+        return;
       }
-      setCommentary(body);
-      setDepth(d);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '導聆產生失敗。');
-    } finally {
-      setLoading(false);
-    }
-  }, [trackName, artistName, mode]);
+      setLoading(true);
+      setError(null);
+      try {
+        const r = await fetch('/api/ai-dj/commentary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trackName, artistName, mode, depth: d }),
+        });
+        const body = (await r.json()) as AiDjCommentaryOutput | ApiError;
+        if (!r.ok || isApiError(body)) {
+          throw new Error((body as ApiError).error?.message ?? '導聆產生失敗。');
+        }
+        setCommentary(body);
+        setDepth(d);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '導聆產生失敗。');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [trackName, artistName, mode],
+  );
 
   // Auto-load short commentary when modal opens
   useEffect(() => {
@@ -71,17 +75,28 @@ export default function CommentaryModal({ onClose }: Props) {
   }, []);
 
   // Cleanup TTS on unmount
-  useEffect(() => () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+    },
+    [],
+  );
 
   async function toggleTts() {
     if (speaking && audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
       setSpeaking(false);
       return;
     }
@@ -100,11 +115,26 @@ export default function CommentaryModal({ onClose }: Props) {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      audioUrlRef.current = url;
       audioRef.current = audio;
-      audio.onended = () => { URL.revokeObjectURL(url); audioRef.current = null; setSpeaking(false); };
-      audio.onerror = () => { URL.revokeObjectURL(url); audioRef.current = null; setSpeaking(false); setError('TTS 播放失敗'); };
+      const clearAudio = () => {
+        URL.revokeObjectURL(url);
+        audioUrlRef.current = null;
+        audioRef.current = null;
+        setSpeaking(false);
+      };
+      audio.onended = clearAudio;
+      audio.onerror = () => {
+        clearAudio();
+        setError('TTS 播放失敗');
+      };
       await audio.play();
     } catch (e) {
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+      audioRef.current = null;
       setSpeaking(false);
       setError(e instanceof Error ? e.message : 'TTS 失敗');
     }
@@ -122,8 +152,12 @@ export default function CommentaryModal({ onClose }: Props) {
     >
       <style jsx global>{`
         @keyframes cm-slide-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
         }
       `}</style>
 
@@ -180,7 +214,9 @@ export default function CommentaryModal({ onClose }: Props) {
             ) : null}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-base font-semibold text-slate-800">{trackName || '—'}</div>
+            <div className="truncate text-base font-semibold text-slate-800">
+              {trackName || '—'}
+            </div>
             <div className="truncate text-[13px] text-slate-500">{artistName}</div>
             {modeMeta ? (
               <div className="mt-1 inline-block rounded-full bg-sky-200/50 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-sky-900">
@@ -253,8 +289,8 @@ export default function CommentaryModal({ onClose }: Props) {
 
       {/* Footer hint */}
       <div className="px-5 pb-10 text-center text-[11.5px] text-slate-400">
-        <IconSpark size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
-        Commentary 由 OpenAI 即時生成
+        <IconSpark size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> Commentary 由
+        OpenAI 即時生成
       </div>
     </div>
   );

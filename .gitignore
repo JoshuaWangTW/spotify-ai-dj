@@ -12,3 +12,4 @@ out
 .pnpm-store
 tsconfig.tsbuildinfo
 .claude/
+nextjs-migration/

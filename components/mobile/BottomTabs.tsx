@@ -2,9 +2,7 @@
 'use client';
 
 import type { ComponentType } from 'react';
-import {
-  IconHome, IconHomeFilled, IconCompass, IconLibrary, IconUser,
-} from './icons';
+import { IconHome, IconHomeFilled, IconCompass, IconLibrary, IconUser } from './icons';
 
 export type TabId = 'foryou' | 'explore' | 'library' | 'profile';
 
@@ -46,7 +44,9 @@ export default function BottomTabs({ active, onSelect }: Props) {
               }`}
             >
               <Ico size={22} strokeWidth={isActive ? 2 : 1.8} />
-              <span className={`text-[11px] ${isActive ? 'font-semibold' : 'font-medium'}`}>{t.label}</span>
+              <span className={`text-[11px] ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                {t.label}
+              </span>
             </button>
           );
         })}

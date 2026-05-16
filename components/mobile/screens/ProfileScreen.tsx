@@ -52,9 +52,7 @@ export default function ProfileScreen({ sessionUser }: Props) {
         <div className="glass-card flex items-center gap-3 rounded-2xl p-3.5">
           <div
             className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-              sessionUser?.spotifyConnected
-                ? 'text-emerald-700'
-                : 'text-amber-700'
+              sessionUser?.spotifyConnected ? 'text-emerald-700' : 'text-amber-700'
             }`}
             style={{
               background: sessionUser?.spotifyConnected
@@ -109,7 +107,11 @@ export default function ProfileScreen({ sessionUser }: Props) {
           link="/settings"
           control={<IconChevronRight size={18} />}
         />
-        <SettingsRow icon={<IconBell size={18} />} label="Notifications" control={<IconChevronRight size={18} />} />
+        <SettingsRow
+          icon={<IconBell size={18} />}
+          label="Notifications"
+          control={<IconChevronRight size={18} />}
+        />
       </div>
 
       <div className="px-5 pt-6">
@@ -135,7 +137,11 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 function SettingsRow({
-  icon, label, subtitle, control, link,
+  icon,
+  label,
+  subtitle,
+  control,
+  link,
 }: {
   icon: React.ReactNode;
   label: string;

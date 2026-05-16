@@ -404,3 +404,5 @@ export function useSpotifyWebPlayback() {
     track,
   };
 }
+
+export type SpotifyPlaybackController = ReturnType<typeof useSpotifyWebPlayback>;

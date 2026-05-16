@@ -99,7 +99,9 @@ function SessionList({ onOpenNowPlaying }: { onOpenNowPlaying: () => void }) {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // Re-fetch when an active session id changes — captures newly-created sessions
   }, [session?.id]);
 
@@ -166,7 +168,8 @@ function SessionList({ onOpenNowPlaying }: { onOpenNowPlaying: () => void }) {
               </div>
               <div className="mt-0.5 truncate text-xs text-slate-500">{s.userPrompt}</div>
               <div className="mt-0.5 text-[11px] text-slate-400">
-                {s.segmentCount} segment{s.segmentCount === 1 ? '' : 's'} · {relativeTime(s.startedAt)}
+                {s.segmentCount} segment{s.segmentCount === 1 ? '' : 's'} ·{' '}
+                {relativeTime(s.startedAt)}
               </div>
             </div>
             <IconChevronRight size={18} />

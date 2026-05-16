@@ -6,7 +6,12 @@ import type { SVGProps } from 'react';
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
-function Icon({ size = 24, strokeWidth = 1.8, children, ...rest }: IconProps & { children: React.ReactNode }) {
+function Icon({
+  size = 24,
+  strokeWidth = 1.8,
+  children,
+  ...rest
+}: IconProps & { children: React.ReactNode }) {
   return (
     <svg
       width={size}
@@ -25,10 +30,17 @@ function Icon({ size = 24, strokeWidth = 1.8, children, ...rest }: IconProps & {
 }
 
 export const IconHome = (p: IconProps) => (
-  <Icon {...p}><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V9.5z" /></Icon>
+  <Icon {...p}>
+    <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V9.5z" />
+  </Icon>
 );
 export const IconHomeFilled = (p: IconProps) => (
-  <Icon {...p} fill="currentColor" stroke="currentColor"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V9.5z" strokeLinejoin="round" /></Icon>
+  <Icon {...p} fill="currentColor" stroke="currentColor">
+    <path
+      d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V9.5z"
+      strokeLinejoin="round"
+    />
+  </Icon>
 );
 export const IconCompass = (p: IconProps) => (
   <Icon {...p}>
@@ -50,7 +62,9 @@ export const IconUser = (p: IconProps) => (
   </Icon>
 );
 export const IconPlay = (p: IconProps) => (
-  <Icon {...p} fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4" /></Icon>
+  <Icon {...p} fill="currentColor" stroke="none">
+    <polygon points="6 4 20 12 6 20 6 4" />
+  </Icon>
 );
 export const IconPause = (p: IconProps) => (
   <Icon {...p} fill="currentColor" stroke="none">
@@ -98,16 +112,24 @@ export const IconHeartFilled = (p: IconProps) => (
   </Icon>
 );
 export const IconChevronRight = (p: IconProps) => (
-  <Icon {...p}><polyline points="9 18 15 12 9 6" /></Icon>
+  <Icon {...p}>
+    <polyline points="9 18 15 12 9 6" />
+  </Icon>
 );
 export const IconChevronDown = (p: IconProps) => (
-  <Icon {...p}><polyline points="6 9 12 15 18 9" /></Icon>
+  <Icon {...p}>
+    <polyline points="6 9 12 15 18 9" />
+  </Icon>
 );
 export const IconChevronLeft = (p: IconProps) => (
-  <Icon {...p}><polyline points="15 18 9 12 15 6" /></Icon>
+  <Icon {...p}>
+    <polyline points="15 18 9 12 15 6" />
+  </Icon>
 );
 export const IconMenu = (p: IconProps) => (
-  <Icon {...p}><path d="M3 6h18M3 12h18M3 18h18" /></Icon>
+  <Icon {...p}>
+    <path d="M3 6h18M3 12h18M3 18h18" />
+  </Icon>
 );
 export const IconBell = (p: IconProps) => (
   <Icon {...p}>
@@ -121,6 +143,12 @@ export const IconSearch = (p: IconProps) => (
     <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </Icon>
 );
+export const IconSend = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M22 2 11 13" />
+    <path d="m22 2-7 20-4-9-9-4 20-7z" />
+  </Icon>
+);
 export const IconSpark = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
@@ -128,7 +156,9 @@ export const IconSpark = (p: IconProps) => (
   </Icon>
 );
 export const IconCheck = (p: IconProps) => (
-  <Icon {...p}><polyline points="20 6 9 17 4 12" /></Icon>
+  <Icon {...p}>
+    <polyline points="20 6 9 17 4 12" />
+  </Icon>
 );
 export const IconMore = (p: IconProps) => (
   <Icon {...p}>

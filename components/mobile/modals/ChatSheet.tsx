@@ -10,7 +10,9 @@ import { useRadio } from '../RadioContext';
 import { IconClose, IconMore, IconSend, IconSpark } from '../icons';
 
 type ApiError = { error?: { message?: string } };
-function isApiError(b: unknown): b is ApiError { return !!b && typeof b === 'object' && 'error' in b; }
+function isApiError(b: unknown): b is ApiError {
+  return !!b && typeof b === 'object' && 'error' in b;
+}
 
 type Message =
   | { role: 'assistant'; text: string; suggestedRadioPrompt?: string }
@@ -57,44 +59,47 @@ export default function ChatSheet({ onClose, initialPrompt, onUseRadioPrompt }: 
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  const send = useCallback(async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || sending) return;
-    setMessages((m) => [...m, { role: 'user', text: trimmed }]);
-    setInput('');
-    setSending(true);
-    setError(null);
-    try {
-      const r = await fetch('/api/music-assistant/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: trimmed,
-          conversationId: conversationId ?? undefined,
-          includeSpotifyTaste: false,
-        }),
-      });
-      const body = (await r.json()) as MusicAssistantChatOutput | ApiError;
-      if (!r.ok || isApiError(body)) {
-        throw new Error((body as ApiError).error?.message ?? 'Music Assistant 回應失敗。');
+  const send = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || sending) return;
+      setMessages((m) => [...m, { role: 'user', text: trimmed }]);
+      setInput('');
+      setSending(true);
+      setError(null);
+      try {
+        const r = await fetch('/api/music-assistant/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: trimmed,
+            conversationId: conversationId ?? undefined,
+            includeSpotifyTaste: false,
+          }),
+        });
+        const body = (await r.json()) as MusicAssistantChatOutput | ApiError;
+        if (!r.ok || isApiError(body)) {
+          throw new Error((body as ApiError).error?.message ?? 'Music Assistant 回應失敗。');
+        }
+        setConversationId(body.conversationId);
+        setMessages((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            text: body.reply,
+            suggestedRadioPrompt: body.suggestedRadioPrompt,
+          },
+        ]);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Music Assistant 回應失敗。');
+      } finally {
+        setSending(false);
       }
-      setConversationId(body.conversationId);
-      setMessages((m) => [
-        ...m,
-        {
-          role: 'assistant',
-          text: body.reply,
-          suggestedRadioPrompt: body.suggestedRadioPrompt,
-        },
-      ]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Music Assistant 回應失敗。');
-    } finally {
-      setSending(false);
-    }
-  }, [conversationId, sending]);
+    },
+    [conversationId, sending],
+  );
 
-  const useSuggestion = (prompt: string) => {
+  const applySuggestion = (prompt: string) => {
     setDraftPrompt(prompt);
     onUseRadioPrompt(prompt);
   };
@@ -109,8 +114,12 @@ export default function ChatSheet({ onClose, initialPrompt, onUseRadioPrompt }: 
     >
       <style jsx global>{`
         @keyframes cs-slide-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
         }
       `}</style>
 
@@ -132,15 +141,9 @@ export default function ChatSheet({ onClose, initialPrompt, onUseRadioPrompt }: 
         </button>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pt-2 pb-4"
-      >
+      <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pt-2 pb-4">
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {m.role === 'user' ? (
               <div
                 className="max-w-[80%] rounded-3xl rounded-br-md px-3.5 py-2.5 text-[14px] text-sky-900"
@@ -159,7 +162,7 @@ export default function ChatSheet({ onClose, initialPrompt, onUseRadioPrompt }: 
                 {m.suggestedRadioPrompt ? (
                   <button
                     type="button"
-                    onClick={() => useSuggestion(m.suggestedRadioPrompt!)}
+                    onClick={() => applySuggestion(m.suggestedRadioPrompt!)}
                     className="mt-2 flex items-center gap-2 rounded-2xl border border-sky-300/70 bg-sky-50/80 px-3 py-2 text-left text-[12.5px] font-semibold text-sky-900"
                   >
                     <IconSpark size={14} />
@@ -213,7 +216,9 @@ export default function ChatSheet({ onClose, initialPrompt, onUseRadioPrompt }: 
       {/* Composer */}
       <div
         className="px-3 pt-2 pb-[max(env(safe-area-inset-bottom),20px)]"
-        style={{ background: 'linear-gradient(to top, rgba(245,250,253,0.98), rgba(245,250,253,0))' }}
+        style={{
+          background: 'linear-gradient(to top, rgba(245,250,253,0.98), rgba(245,250,253,0))',
+        }}
       >
         <div className="glass-panel flex items-center gap-2 rounded-[22px] py-1.5 pl-4 pr-1.5">
           <input

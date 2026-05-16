@@ -161,6 +161,21 @@ function parseSignedSessionCookie(value: string): SignedSessionPayload | null {
   }
 }
 
+export function getSignedSessionPayloadFromCookie(value: string): SignedSessionPayload | null {
+  const signedSession = parseSignedSessionCookie(value);
+
+  if (!signedSession) {
+    return null;
+  }
+
+  if (Date.now() - signedSession.createdAt > SESSION_MAX_AGE_MS) {
+    getSessionStore().delete(signedSession.sessionId);
+    return null;
+  }
+
+  return signedSession;
+}
+
 export function setOAuthStateCookie(response: NextResponse, state: string): void {
   response.cookies.set(SPOTIFY_OAUTH_STATE_COOKIE, state, {
     httpOnly: true,

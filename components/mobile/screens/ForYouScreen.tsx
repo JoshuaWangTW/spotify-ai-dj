@@ -21,10 +21,16 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
   return (
     <div className="px-0">
       <div className="flex items-center justify-between px-5 pt-2 pb-1">
-        <button type="button" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-slate-600">
+        <button
+          type="button"
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-slate-600"
+        >
           <IconMenu size={20} />
         </button>
-        <button type="button" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-slate-600">
+        <button
+          type="button"
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-slate-600"
+        >
           <IconBell size={20} />
         </button>
       </div>
@@ -97,9 +103,21 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
               preserveAspectRatio="none"
               fill="none"
             >
-              <path d="M0 80 Q 60 30 110 70 T 220 70" stroke="rgba(125,211,252,0.6)" strokeWidth="2.5" />
-              <path d="M0 95 Q 60 50 110 90 T 220 90" stroke="rgba(186,230,253,0.7)" strokeWidth="2" />
-              <path d="M0 110 Q 60 80 110 105 T 220 105" stroke="rgba(255,255,255,0.7)" strokeWidth="1.8" />
+              <path
+                d="M0 80 Q 60 30 110 70 T 220 70"
+                stroke="rgba(125,211,252,0.6)"
+                strokeWidth="2.5"
+              />
+              <path
+                d="M0 95 Q 60 50 110 90 T 220 90"
+                stroke="rgba(186,230,253,0.7)"
+                strokeWidth="2"
+              />
+              <path
+                d="M0 110 Q 60 80 110 105 T 220 105"
+                stroke="rgba(255,255,255,0.7)"
+                strokeWidth="1.8"
+              />
             </svg>
             <div className="relative z-10 flex items-center justify-between gap-4">
               <div className="flex-1">
@@ -112,7 +130,8 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
                 className="flex h-[58px] w-[58px] flex-shrink-0 items-center justify-center rounded-full border border-white/95 text-sky-600"
                 style={{
                   background: 'linear-gradient(135deg, #ffffff, #e0f2fe)',
-                  boxShadow: '0 6px 18px rgba(125,211,252,0.4), inset 0 1px 0 rgba(255,255,255,0.95)',
+                  boxShadow:
+                    '0 6px 18px rgba(125,211,252,0.4), inset 0 1px 0 rgba(255,255,255,0.95)',
                 }}
               >
                 <IconPlay size={22} />
@@ -149,7 +168,10 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
           <SectionHeader title="Now Playing Queue" />
           <div className="flex flex-col gap-2 px-5">
             {segment.tracks.slice(0, 6).map((t, i) => (
-              <div key={t.spotifyUri} className="flex items-center gap-3 rounded-2xl bg-white/60 p-2.5">
+              <div
+                key={t.spotifyUri}
+                className="flex items-center gap-3 rounded-2xl bg-white/60 p-2.5"
+              >
                 <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-slate-200">
                   {t.albumImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -157,7 +179,9 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
                   ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13.5px] font-semibold text-slate-800">{t.title}</div>
+                  <div className="truncate text-[13.5px] font-semibold text-slate-800">
+                    {t.title}
+                  </div>
                   <div className="truncate text-xs text-slate-500">{t.artist}</div>
                 </div>
                 <span className="text-[12px] tabular-nums text-slate-400">{i + 1}</span>
@@ -170,9 +194,24 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
           <SectionHeader title="Recent Sessions" action="History" />
           <div className="flex flex-col gap-2.5 px-5">
             {[
-              { title: 'Late Night Jazz', subtitle: '12 tracks · Jazz Intro', when: '2h ago', art: 'sax' as AlbumArtKind },
-              { title: 'Beethoven Symphonies', subtitle: '8 tracks · Classical', when: 'Yesterday', art: 'violin' as AlbumArtKind },
-              { title: 'Roasting Session', subtitle: '6 tracks · Coffee', when: '2d ago', art: 'desert' as AlbumArtKind },
+              {
+                title: 'Late Night Jazz',
+                subtitle: '12 tracks · Jazz Intro',
+                when: '2h ago',
+                art: 'sax' as AlbumArtKind,
+              },
+              {
+                title: 'Beethoven Symphonies',
+                subtitle: '8 tracks · Classical',
+                when: 'Yesterday',
+                art: 'violin' as AlbumArtKind,
+              },
+              {
+                title: 'Roasting Session',
+                subtitle: '6 tracks · Coffee',
+                when: '2d ago',
+                art: 'desert' as AlbumArtKind,
+              },
             ].map((s) => (
               <div key={s.title} className="glass-card flex items-center gap-3 rounded-2xl p-2.5">
                 <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl">

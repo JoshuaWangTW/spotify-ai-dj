@@ -1,32 +1,28 @@
-// app/api/radio/sessions/route.ts
-// Lists the user's radio sessions for the Library tab.
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 
 import { validateSameOriginRequest } from '../../../../lib/api/security';
 import { getSpotifySession } from '../../../../lib/auth/session';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
+import { radioSessionsOutputSchema } from '../../../../lib/radio/session-list-schema';
 
 export const runtime = 'nodejs';
 
-export const radioSessionSummarySchema = z.object({
-  id: z.string(),
-  status: z.enum(['active', 'stopped']),
-  mode: z.string(),
-  userPrompt: z.string(),
-  startedAt: z.string(),
-  endedAt: z.string().nullable(),
-  segmentCount: z.number().int().nonnegative(),
-});
+type RadioSessionRow = {
+  endedAt: Date | null;
+  id: string;
+  mode: string;
+  startedAt: Date;
+  status: string;
+  userPrompt: string;
+};
 
-export const radioSessionsOutputSchema = z.object({
-  ok: z.literal(true),
-  sessions: z.array(radioSessionSummarySchema),
-});
-
-export type RadioSessionSummary = z.infer<typeof radioSessionSummarySchema>;
-export type RadioSessionsOutput = z.infer<typeof radioSessionsOutputSchema>;
+type RadioSegmentCountRow = {
+  _count: {
+    _all: number;
+  };
+  sessionId: string;
+};
 
 function jsonError(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -58,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     // Pull segment counts in one extra query so we don't need to know the
     // Prisma relation back-reference name.
-    const ids = rows.map((r) => r.id);
+    const ids = rows.map((row: RadioSessionRow) => row.id);
     const counts = ids.length
       ? await prisma.radioSegment.groupBy({
           by: ['sessionId'],
@@ -66,9 +62,13 @@ export async function GET(request: NextRequest) {
           _count: { _all: true },
         })
       : [];
-    const countMap = new Map(counts.map((c) => [c.sessionId, c._count._all] as const));
+    const countMap = new Map(
+      (counts as RadioSegmentCountRow[]).map(
+        (count) => [count.sessionId, count._count._all] as const,
+      ),
+    );
 
-    const sessions = rows.map((row) => ({
+    const sessions = (rows as RadioSessionRow[]).map((row) => ({
       id: row.id,
       status: row.status as 'active' | 'stopped',
       mode: row.mode,
@@ -77,8 +77,13 @@ export async function GET(request: NextRequest) {
       endedAt: row.endedAt ? row.endedAt.toISOString() : null,
       segmentCount: countMap.get(row.id) ?? 0,
     }));
+    const output = radioSessionsOutputSchema.safeParse({ ok: true, sessions });
 
-    return NextResponse.json({ ok: true, sessions });
+    if (!output.success) {
+      return jsonError('RADIO_SESSIONS_OUTPUT_INVALID', 'Radio sessions output was invalid.', 500);
+    }
+
+    return NextResponse.json(output.data);
   } catch (error) {
     if (isPrismaError(error)) {
       return jsonError('DATABASE_REQUEST_FAILED', 'Database request failed.', 500);

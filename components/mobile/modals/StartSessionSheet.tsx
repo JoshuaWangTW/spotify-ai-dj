@@ -44,8 +44,12 @@ export default function StartSessionSheet({ mode, onClose, onStarted }: Props) {
     >
       <style jsx global>{`
         @keyframes sheet-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
         }
       `}</style>
 
@@ -100,7 +104,9 @@ export default function StartSessionSheet({ mode, onClose, onStarted }: Props) {
         <div className="glass-card flex items-center justify-between rounded-2xl px-4 py-3">
           <div>
             <div className="text-[13.5px] font-medium text-slate-800">Auto-queue tracks</div>
-            <div className="text-[11.5px] text-slate-500">AI fills your Spotify queue as you listen</div>
+            <div className="text-[11.5px] text-slate-500">
+              AI fills your Spotify queue as you listen
+            </div>
           </div>
           <button
             type="button"
@@ -108,7 +114,9 @@ export default function StartSessionSheet({ mode, onClose, onStarted }: Props) {
             aria-checked={autoQueue}
             onClick={() => setAutoQueue((v) => !v)}
             className="relative h-[26px] w-11 rounded-full transition-colors"
-            style={{ background: autoQueue ? 'linear-gradient(135deg, #7dd3fc, #0284c7)' : '#cbd5e1' }}
+            style={{
+              background: autoQueue ? 'linear-gradient(135deg, #7dd3fc, #0284c7)' : '#cbd5e1',
+            }}
           >
             <span
               className="absolute top-[3px] h-5 w-5 rounded-full bg-white transition-[left]"

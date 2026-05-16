@@ -113,8 +113,13 @@ function MiniEq({ playing }: { playing: boolean }) {
       ))}
       <style jsx>{`
         @keyframes mp-eq {
-          0%, 100% { height: 5px; }
-          50% { height: 14px; }
+          0%,
+          100% {
+            height: 5px;
+          }
+          50% {
+            height: 14px;
+          }
         }
         .mp-eq-bar {
           animation: mp-eq 0.9s ease-in-out infinite;

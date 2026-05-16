@@ -21,6 +21,9 @@ import CommentaryModal from './modals/CommentaryModal';
 import ChatSheet from './modals/ChatSheet';
 import type { DjMode } from './modes';
 
+const AUTO_TICK_INTERVAL_MS = 30_000;
+const AUTO_TICK_QUEUE_THRESHOLD = 1;
+
 export type SessionUser = {
   displayName: string;
   spotifyConnected: boolean;
@@ -49,15 +52,52 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
   const [showChat, setShowChat] = useState(false);
   const [chatInitialPrompt, setChatInitialPrompt] = useState<string | undefined>(undefined);
   const [startSessionMode, setStartSessionMode] = useState<DjMode | null>(null);
+  const autoTickInFlightRef = useRef(false);
 
   // Spotify playback (single hook instance at the shell level)
   const playback = useSpotifyWebPlayback();
-  const { segment, setDraftPrompt } = useRadio();
+  const { segment, session: radioSession, setDraftPrompt, tickSession } = useRadio();
 
   // Reset scroll on tab change
   useEffect(() => {
     scrollRef.current?.scrollTo(0, 0);
   }, [tab]);
+
+  useEffect(() => {
+    if (radioSession?.status !== 'active') {
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => {
+      if (autoTickInFlightRef.current) {
+        return;
+      }
+
+      autoTickInFlightRef.current = true;
+
+      void (async () => {
+        try {
+          const response = await fetch('/api/spotify/queue-status', {
+            cache: 'no-store',
+          });
+
+          if (!response.ok) {
+            return;
+          }
+
+          const body = (await response.json()) as { queueCount?: unknown };
+
+          if (typeof body.queueCount === 'number' && body.queueCount <= AUTO_TICK_QUEUE_THRESHOLD) {
+            await tickSession();
+          }
+        } finally {
+          autoTickInFlightRef.current = false;
+        }
+      })();
+    }, AUTO_TICK_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [radioSession?.id, radioSession?.status, tickSession]);
 
   const openNowPlaying = useCallback(() => setShowNowPlaying(true), []);
   const closeNowPlaying = useCallback(() => setShowNowPlaying(false), []);
@@ -79,13 +119,16 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
 
   // When ChatSheet hands off a radio prompt, open StartSessionSheet
   // pre-filled with the first mode (user can change it inside the sheet).
-  const handleChatHandoff = useCallback((prompt: string) => {
-    setDraftPrompt(prompt);
-    setShowChat(false);
-    // Default to the first mode — RadioContext.draftPrompt is what wins.
-    // The user picks a different mode there if they want.
-    import('./modes').then(({ MODES }) => setStartSessionMode(MODES[0]));
-  }, [setDraftPrompt]);
+  const handleChatHandoff = useCallback(
+    (prompt: string) => {
+      setDraftPrompt(prompt);
+      setShowChat(false);
+      // Default to the first mode — RadioContext.draftPrompt is what wins.
+      // The user picks a different mode there if they want.
+      import('./modes').then(({ MODES }) => setStartSessionMode(MODES[0]));
+    },
+    [setDraftPrompt],
+  );
 
   const hasSomethingPlaying = !!playback.track || !!segment;
 
@@ -113,9 +156,7 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
             onOpenNowPlaying={openNowPlaying}
           />
         )}
-        {tab === 'explore' && (
-          <ExploreScreen onPickMode={pickMode} onOpenChat={openChat} />
-        )}
+        {tab === 'explore' && <ExploreScreen onPickMode={pickMode} onOpenChat={openChat} />}
         {tab === 'library' && <LibraryScreen onOpenNowPlaying={openNowPlaying} />}
         {tab === 'profile' && <ProfileScreen sessionUser={sessionUser} />}
       </div>
@@ -133,14 +174,13 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
 
       {showNowPlaying && (
         <NowPlayingModal
+          playback={playback}
           onClose={closeNowPlaying}
           onOpenCommentary={openCommentary}
         />
       )}
 
-      {showCommentary && (
-        <CommentaryModal onClose={closeCommentary} />
-      )}
+      {showCommentary && <CommentaryModal track={playback.track} onClose={closeCommentary} />}
 
       {startSessionMode && (
         <StartSessionSheet

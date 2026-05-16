@@ -10,11 +10,7 @@ type Props = {
   onOpenChat: (initialPrompt?: string) => void;
 };
 
-const PRESETS = [
-  '想聽爵士，想學一點，不要太硬',
-  '今晚開店，平靜古典背景樂',
-  '深度工作，沒有人聲',
-];
+const PRESETS = ['想聽爵士，想學一點，不要太硬', '今晚開店，平靜古典背景樂', '深度工作，沒有人聲'];
 
 export default function ExploreScreen({ onPickMode, onOpenChat }: Props) {
   return (
@@ -56,7 +52,8 @@ export default function ExploreScreen({ onPickMode, onOpenChat }: Props) {
             <div className="flex-1">
               <div className="text-base font-bold text-sky-900">Music Assistant</div>
               <div className="mt-1 text-[13px] leading-snug text-slate-500">
-                Chat in natural language. I&apos;ll suggest a vibe, build a queue, and explain every pick.
+                Chat in natural language. I&apos;ll suggest a vibe, build a queue, and explain every
+                pick.
               </div>
             </div>
           </div>

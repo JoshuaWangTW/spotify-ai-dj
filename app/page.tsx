@@ -3,27 +3,23 @@
 import { cookies } from 'next/headers';
 
 import MobileShell, { type SessionUser } from '../components/mobile/MobileShell';
+import { getSignedSessionPayloadFromCookie, SPOTIFY_SESSION_COOKIE } from '../lib/auth/session';
 
 async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('spotify_ai_dj_session');
+  const sessionCookie = cookieStore.get(SPOTIFY_SESSION_COOKIE);
   if (!sessionCookie?.value) return null;
 
-  const lastDot = sessionCookie.value.lastIndexOf('.');
-  if (lastDot === -1) return null;
+  const payload = getSignedSessionPayloadFromCookie(sessionCookie.value);
 
-  const encodedPayload = sessionCookie.value.slice(0, lastDot);
-  try {
-    const payload = JSON.parse(
-      Buffer.from(encodedPayload, 'base64url').toString('utf8'),
-    ) as { displayName?: string; spotifyConnected?: boolean };
-    return {
-      displayName: payload.displayName ?? 'User',
-      spotifyConnected: payload.spotifyConnected === true,
-    };
-  } catch {
+  if (!payload) {
     return null;
   }
+
+  return {
+    displayName: payload.displayName,
+    spotifyConnected: payload.spotifyConnected,
+  };
 }
 
 type HomePageProps = {

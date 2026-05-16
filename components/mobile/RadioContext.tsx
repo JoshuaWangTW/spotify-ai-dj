@@ -5,7 +5,12 @@
 'use client';
 
 import {
-  createContext, useCallback, useContext, useMemo, useRef, useState,
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
   type ReactNode,
 } from 'react';
 
@@ -25,7 +30,11 @@ function apiErrorMessage(b: unknown, fallback: string): string {
   return (b as ApiError)?.error?.message ?? fallback;
 }
 async function readJson<T>(r: Response, fb: string): Promise<T> {
-  try { return (await r.json()) as T; } catch { throw new Error(fb); }
+  try {
+    return (await r.json()) as T;
+  } catch {
+    throw new Error(fb);
+  }
 }
 
 type Session = RadioStartOutput['session'];
@@ -44,7 +53,11 @@ export type RadioContextValue = {
   draftPrompt: string;
   setDraftPrompt: (p: string) => void;
   // Actions
-  startSession: (args: { prompt: string; mode: AiDjMode; autoplayQueue?: boolean }) => Promise<RadioStartOutput | null>;
+  startSession: (args: {
+    prompt: string;
+    mode: AiDjMode;
+    autoplayQueue?: boolean;
+  }) => Promise<RadioStartOutput | null>;
   tickSession: () => Promise<RadioTickOutput | null>;
   stopSession: () => Promise<RadioStopOutput | null>;
   clearError: () => void;
@@ -75,39 +88,48 @@ export function RadioProvider({ children }: ProviderProps) {
   const sessionIdRef = useRef<string | null>(null);
   sessionIdRef.current = session?.id ?? null;
 
-  const startSession = useCallback(async ({
-    prompt, mode, autoplayQueue = true,
-  }: { prompt: string; mode: AiDjMode; autoplayQueue?: boolean }) => {
-    const trimmed = prompt.trim();
-    if (!trimmed) return null;
-    setStarting(true);
-    setError(null);
-    try {
-      const r = await fetch('/api/radio/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          autoplayQueue,
-          clientTimeIso: new Date().toISOString(),
-          mode,
-          prompt: trimmed,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }),
-      });
-      const body = await readJson<RadioStartOutput | ApiError>(r, 'Radio start 回傳格式錯誤。');
-      if (!r.ok || isApiError(body)) {
-        throw new Error(apiErrorMessage(body, 'Radio session 建立失敗。'));
+  const startSession = useCallback(
+    async ({
+      prompt,
+      mode,
+      autoplayQueue = true,
+    }: {
+      prompt: string;
+      mode: AiDjMode;
+      autoplayQueue?: boolean;
+    }) => {
+      const trimmed = prompt.trim();
+      if (!trimmed) return null;
+      setStarting(true);
+      setError(null);
+      try {
+        const r = await fetch('/api/radio/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            autoplayQueue,
+            clientTimeIso: new Date().toISOString(),
+            mode,
+            prompt: trimmed,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }),
+        });
+        const body = await readJson<RadioStartOutput | ApiError>(r, 'Radio start 回傳格式錯誤。');
+        if (!r.ok || isApiError(body)) {
+          throw new Error(apiErrorMessage(body, 'Radio session 建立失敗。'));
+        }
+        setSession(body.session);
+        setSegment(body.segment);
+        return body;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Radio session 建立失敗。');
+        return null;
+      } finally {
+        setStarting(false);
       }
-      setSession(body.session);
-      setSegment(body.segment);
-      return body;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Radio session 建立失敗。');
-      return null;
-    } finally {
-      setStarting(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const tickSession = useCallback(async () => {
     const id = sessionIdRef.current;
@@ -168,15 +190,35 @@ export function RadioProvider({ children }: ProviderProps) {
 
   const clearError = useCallback(() => setError(null), []);
 
-  const value = useMemo<RadioContextValue>(() => ({
-    session, segment,
-    isStarting, isTicking, isStopping,
-    errorMessage, draftPrompt, setDraftPrompt,
-    startSession, tickSession, stopSession, clearError,
-  }), [
-    session, segment, isStarting, isTicking, isStopping,
-    errorMessage, draftPrompt, startSession, tickSession, stopSession, clearError,
-  ]);
+  const value = useMemo<RadioContextValue>(
+    () => ({
+      session,
+      segment,
+      isStarting,
+      isTicking,
+      isStopping,
+      errorMessage,
+      draftPrompt,
+      setDraftPrompt,
+      startSession,
+      tickSession,
+      stopSession,
+      clearError,
+    }),
+    [
+      session,
+      segment,
+      isStarting,
+      isTicking,
+      isStopping,
+      errorMessage,
+      draftPrompt,
+      startSession,
+      tickSession,
+      stopSession,
+      clearError,
+    ],
+  );
 
   return <RadioContext.Provider value={value}>{children}</RadioContext.Provider>;
 }
