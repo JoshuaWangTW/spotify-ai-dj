@@ -6,7 +6,7 @@ import type { AlbumArtKind } from './AlbumArtwork';
 
 export type DjMode = {
   /** Maps directly to RadioStartInput.mode */
-  id: Exclude<AiDjMode, 'auto'>;
+  id: AiDjMode;
   /** Short noun for chips / cards */
   shortLabel: string;
   /** Long-form label for headers */
@@ -21,6 +21,17 @@ export type DjMode = {
   coverWideSrc: string;
   /** Default Chinese prompt suggestion shown on Mode Detail */
   defaultPrompt: string;
+};
+
+export const ASSISTANT_CUSTOM_MODE: DjMode = {
+  id: 'auto',
+  shortLabel: 'Custom',
+  label: 'Choose Category',
+  hint: '選擇既有分類，或建立一個新的聆聽分類',
+  art: 'orb',
+  coverSquareSrc: '/covers/focus-square.png',
+  coverWideSrc: '/covers/focus-wide.png',
+  defaultPrompt: '依照 Music Assistant 的建議建立一段新的 radio session。',
 };
 
 export const MODES: ReadonlyArray<DjMode> = [
@@ -77,6 +88,6 @@ export const MODES: ReadonlyArray<DjMode> = [
 ];
 
 export function findMode(id: AiDjMode): DjMode | undefined {
-  if (id === 'auto') return undefined;
+  if (id === 'auto') return ASSISTANT_CUSTOM_MODE;
   return MODES.find((m) => m.id === id);
 }

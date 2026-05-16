@@ -279,63 +279,123 @@ function selectBestTrackCandidate(
   );
 }
 
+function createSpotifySearchStatusError(status: number): SpotifyWebApiError {
+  if (status === 401) {
+    return new SpotifyWebApiError(
+      'SPOTIFY_SEARCH_AUTH_FAILED',
+      'Spotify login expired. Please reconnect Spotify.',
+      401,
+    );
+  }
+
+  if (status === 403) {
+    return new SpotifyWebApiError(
+      'SPOTIFY_SEARCH_FORBIDDEN',
+      'Spotify search was denied. Please check Spotify app access or reconnect Spotify.',
+      403,
+    );
+  }
+
+  if (status === 429) {
+    return new SpotifyWebApiError(
+      'SPOTIFY_SEARCH_RATE_LIMITED',
+      'Spotify rate limit was reached. Please try again later.',
+      429,
+    );
+  }
+
+  return new SpotifyWebApiError('SPOTIFY_SEARCH_FAILED', 'Spotify search failed.', 502);
+}
+
+function isFatalSpotifySearchError(error: SpotifyWebApiError): boolean {
+  return (
+    error.code === 'SPOTIFY_SEARCH_AUTH_FAILED' ||
+    error.code === 'SPOTIFY_SEARCH_FORBIDDEN' ||
+    error.code === 'SPOTIFY_SEARCH_RATE_LIMITED'
+  );
+}
+
+async function searchSpotifyTrackForQuery(
+  accessToken: string,
+  query: string,
+): Promise<SpotifyTrackCandidate | null> {
+  const searchUrl = new URL(SPOTIFY_SEARCH_URL);
+  searchUrl.searchParams.set('q', query.trim().replace(/\s+/g, ' '));
+  searchUrl.searchParams.set('type', 'track');
+  searchUrl.searchParams.set('limit', '3');
+  searchUrl.searchParams.set('market', 'from_token');
+
+  const response = await fetch(searchUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    signal: AbortSignal.timeout(SPOTIFY_REQUEST_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw createSpotifySearchStatusError(response.status);
+  }
+
+  const json = (await response.json()) as unknown;
+  const parsed = spotifySearchResponseSchema.safeParse(json);
+
+  if (!parsed.success) {
+    throw new SpotifyWebApiError(
+      'SPOTIFY_SEARCH_RESPONSE_INVALID',
+      'Spotify search response was invalid.',
+      502,
+    );
+  }
+
+  const selectedTrack = selectBestTrackCandidate(parsed.data.tracks.items);
+
+  return selectedTrack ? normalizeSpotifyTrack(query, selectedTrack) : null;
+}
+
 export async function searchSpotifyTracks(
   accessToken: string,
   queries: string[],
 ): Promise<SpotifyTrackCandidate[]> {
-  const abortController = new AbortController();
-  const timeout = setTimeout(() => abortController.abort(), SPOTIFY_REQUEST_TIMEOUT_MS);
+  const candidates: SpotifyTrackCandidate[] = [];
+  let recoverableFailureCount = 0;
 
-  try {
-    const candidates = await Promise.all(
-      queries.map(async (query) => {
-        const searchUrl = new URL(SPOTIFY_SEARCH_URL);
-        searchUrl.searchParams.set('q', query);
-        searchUrl.searchParams.set('type', 'track');
-        searchUrl.searchParams.set('limit', '3');
+  for (const query of queries) {
+    try {
+      const candidate = await searchSpotifyTrackForQuery(accessToken, query);
 
-        const response = await fetch(searchUrl, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          signal: abortController.signal,
-        });
-
-        if (!response.ok) {
-          throw new SpotifyWebApiError('SPOTIFY_SEARCH_FAILED', 'Spotify search failed.', 502);
+      if (candidate) {
+        candidates.push(candidate);
+      }
+    } catch (error) {
+      if (error instanceof SpotifyWebApiError) {
+        if (isFatalSpotifySearchError(error)) {
+          throw error;
         }
 
-        const json = (await response.json()) as unknown;
-        const parsed = spotifySearchResponseSchema.safeParse(json);
+        recoverableFailureCount += 1;
+        continue;
+      }
 
-        if (!parsed.success) {
-          throw new SpotifyWebApiError(
-            'SPOTIFY_SEARCH_RESPONSE_INVALID',
-            'Spotify search response was invalid.',
-            502,
-          );
-        }
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        recoverableFailureCount += 1;
+        continue;
+      }
 
-        const selectedTrack = selectBestTrackCandidate(parsed.data.tracks.items);
-
-        return selectedTrack ? normalizeSpotifyTrack(query, selectedTrack) : null;
-      }),
-    );
-
-    return candidates.filter((candidate): candidate is SpotifyTrackCandidate => Boolean(candidate));
-  } catch (error) {
-    if (error instanceof SpotifyWebApiError) {
-      throw error;
+      throw new SpotifyWebApiError('SPOTIFY_SEARCH_FAILED', 'Spotify search failed.', 502);
     }
-
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new SpotifyWebApiError('SPOTIFY_SEARCH_TIMEOUT', 'Spotify search timed out.', 504);
-    }
-
-    throw new SpotifyWebApiError('SPOTIFY_SEARCH_FAILED', 'Spotify search failed.', 502);
-  } finally {
-    clearTimeout(timeout);
   }
+
+  if (candidates.length === 0) {
+    throw new SpotifyWebApiError(
+      recoverableFailureCount > 0 ? 'SPOTIFY_SEARCH_UNAVAILABLE' : 'SPOTIFY_SEARCH_NO_RESULTS',
+      recoverableFailureCount > 0
+        ? 'Spotify search was temporarily unavailable. Please try again.'
+        : 'Spotify search returned no playable tracks. Try a more specific prompt.',
+      502,
+    );
+  }
+
+  return candidates;
 }
 
 export async function queueSpotifyTracks(

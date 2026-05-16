@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 
 import AlbumArtwork from '../AlbumArtwork';
 import { useRadio } from '../RadioContext';
-import type { DjMode } from '../modes';
+import { ASSISTANT_CUSTOM_MODE, MODES, type DjMode } from '../modes';
 import { IconChevronLeft, IconPlay } from '../icons';
 
 type Props = {
@@ -18,16 +18,30 @@ type Props = {
 
 export default function StartSessionSheet({ mode, onClose, onStarted }: Props) {
   const { draftPrompt, setDraftPrompt, startSession, isStarting, errorMessage } = useRadio();
+  const [selectedMode, setSelectedMode] = useState(mode);
   const [prompt, setPrompt] = useState(draftPrompt || mode.defaultPrompt);
   const [autoQueue, setAutoQueue] = useState(true);
+  const [customCategory, setCustomCategory] = useState('');
+  const isAssistantHandoff = draftPrompt.trim().length > 0;
+  const isCustomMode = selectedMode.id === 'auto';
 
   // If user opens another mode, refresh the prompt
   useEffect(() => {
+    setSelectedMode(mode);
     if (!draftPrompt) setPrompt(mode.defaultPrompt);
-  }, [mode.id, draftPrompt, mode.defaultPrompt]);
+  }, [mode, draftPrompt]);
 
   async function handleStart() {
-    const ok = await startSession({ prompt, mode: mode.id, autoplayQueue: autoQueue });
+    const categoryLabel = customCategory.trim();
+    const promptWithCategory =
+      isCustomMode && categoryLabel
+        ? `${prompt.trim()}\n自訂分類：${categoryLabel}`
+        : prompt.trim();
+    const ok = await startSession({
+      prompt: promptWithCategory,
+      mode: selectedMode.id,
+      autoplayQueue: autoQueue,
+    });
     if (ok) {
       setDraftPrompt('');
       onStarted();
@@ -62,7 +76,7 @@ export default function StartSessionSheet({ mode, onClose, onStarted }: Props) {
         >
           <IconChevronLeft size={20} />
         </button>
-        <span className="text-sm font-semibold text-slate-800">{mode.label}</span>
+        <span className="text-sm font-semibold text-slate-800">{selectedMode.label}</span>
         <span style={{ width: 36 }} />
       </div>
 
@@ -74,14 +88,60 @@ export default function StartSessionSheet({ mode, onClose, onStarted }: Props) {
             boxShadow: '0 8px 24px rgba(70,110,140,0.18)',
           }}
         >
-          <AlbumArtwork kind={mode.art} src={mode.coverWideSrc} size={400} radius={0} />
+          <AlbumArtwork
+            kind={selectedMode.art}
+            src={selectedMode.coverWideSrc}
+            size={400}
+            radius={0}
+          />
         </div>
       </div>
 
       <div className="px-5 pt-5">
-        <h2 className="m-0 text-[26px] font-bold tracking-tight text-slate-900">{mode.label}</h2>
-        <p className="mt-1.5 text-sm leading-snug text-slate-500">{mode.hint}</p>
+        <h2 className="m-0 text-[26px] font-bold tracking-tight text-slate-900">
+          {selectedMode.label}
+        </h2>
+        <p className="mt-1.5 text-sm leading-snug text-slate-500">{selectedMode.hint}</p>
       </div>
+
+      {isAssistantHandoff ? (
+        <div className="px-5 pt-4">
+          <div className="glass-panel rounded-2xl p-4">
+            <div className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-slate-500">
+              Category
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {[ASSISTANT_CUSTOM_MODE, ...MODES].map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setSelectedMode(option)}
+                  className={`rounded-2xl border px-3 py-2.5 text-left text-[13px] font-semibold transition ${
+                    selectedMode.id === option.id
+                      ? 'border-sky-400 bg-sky-100/80 text-sky-900'
+                      : 'border-white/60 bg-white/50 text-slate-600'
+                  }`}
+                >
+                  <span className="block">{option.shortLabel}</span>
+                  <span className="mt-0.5 block text-[11px] font-normal text-slate-500">
+                    {option.hint}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {isCustomMode ? (
+              <input
+                value={customCategory}
+                onChange={(event) => setCustomCategory(event.target.value)}
+                maxLength={60}
+                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white/70 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-sky-400"
+                placeholder="新分類名稱，例如：夜跑、週末閱讀、低調電子"
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="px-5 pt-4">
         <div className="glass-panel rounded-2xl p-4">

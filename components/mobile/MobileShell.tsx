@@ -19,7 +19,7 @@ import NowPlayingModal from './modals/NowPlayingModal';
 import StartSessionSheet from './modals/StartSessionSheet';
 import CommentaryModal from './modals/CommentaryModal';
 import ChatSheet from './modals/ChatSheet';
-import type { DjMode } from './modes';
+import { ASSISTANT_CUSTOM_MODE, type DjMode } from './modes';
 
 const AUTO_TICK_INTERVAL_MS = 30_000;
 const AUTO_TICK_QUEUE_THRESHOLD = 1;
@@ -118,14 +118,12 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
   }, []);
 
   // When ChatSheet hands off a radio prompt, open StartSessionSheet
-  // pre-filled with the first mode (user can change it inside the sheet).
+  // in category-picking mode instead of forcing Jazz.
   const handleChatHandoff = useCallback(
     (prompt: string) => {
       setDraftPrompt(prompt);
       setShowChat(false);
-      // Default to the first mode — RadioContext.draftPrompt is what wins.
-      // The user picks a different mode there if they want.
-      import('./modes').then(({ MODES }) => setStartSessionMode(MODES[0]));
+      setStartSessionMode(ASSISTANT_CUSTOM_MODE);
     },
     [setDraftPrompt],
   );
