@@ -11,6 +11,7 @@
 ```bash
 pnpm install --frozen-lockfile
 pnpm db:generate
+pnpm db:deploy
 pnpm build
 ```
 
@@ -39,7 +40,7 @@ NODE_ENV=production
 - [ ] Spotify Developer Dashboard redirect URI 設成 production URL。
 - [ ] `SPOTIFY_REDIRECT_URI` 不可使用 localhost / 127.0.0.1。
 - [ ] Zeabur env 設定完成。
-- [ ] PostgreSQL migration 跑完。
+- [ ] PostgreSQL migration 透過 `pnpm db:deploy` 跑完。
 - [ ] `pnpm build` 成功。
 - [ ] Login callback 正常。
 - [ ] Player 能在 Premium 帳號播放。

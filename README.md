@@ -22,6 +22,7 @@ The test script uses Node's TypeScript stripping flag, so Node 22.6 or newer is 
 - `AGENTS.md`：Codex 專案指令。
 - `CLAUDE.md`：Claude Code review 指令。
 - `.env.example`：環境變數範本。
+- `SETUP_FOR_FRIENDS.md`：朋友自行部署、使用自己的 OpenAI key 與 Spotify app 的流程。
 - `docs/`：產品、架構、API、資料庫、開發任務、review checklist。
 
 ## Zeabur deployment
@@ -33,7 +34,7 @@ The test script uses Node's TypeScript stripping flag, so Node 22.6 or newer is 
 
 Zeabur build/start command 已放在 `zbpack.json`：
 
-- Build: `pnpm install --frozen-lockfile && pnpm db:generate && pnpm build`
+- Build: `pnpm install --frozen-lockfile && pnpm db:generate && pnpm db:deploy && pnpm build`
 - Start: `pnpm start`
 
 Production env 必填：
@@ -54,5 +55,5 @@ NODE_ENV=production
 
 1. 在 Spotify Developer Dashboard 加入 production callback URL，必須是 `https://.../api/auth/spotify/callback`，不能是 localhost。
 2. 在 Zeabur 設定以上 env，並連到 PostgreSQL service 的 `DATABASE_URL`。
-3. 部署後執行 Prisma migration 與 seed：`pnpm db:migrate`、`pnpm db:seed`。
+3. 部署時 `zbpack.json` 會執行 `pnpm db:deploy`；若需要初始資料，再手動執行 `pnpm db:seed`。
 4. 用 Spotify Premium 帳號測 OAuth callback、Web Playback SDK、search、queue。
