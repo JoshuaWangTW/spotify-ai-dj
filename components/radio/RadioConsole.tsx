@@ -615,7 +615,10 @@ export default function RadioConsole() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,0.9fr)_minmax(420px,1.1fr)]">
-        <NowPlaying djMode={currentMode} />
+        <NowPlaying
+          djMode={currentMode}
+          djSchedulerEnabled={session?.status === 'active' && ttsEnabled}
+        />
         <QueueList
           feedbackStatusByKey={feedbackStatusByKey}
           isLoading={isStarting || isTicking}

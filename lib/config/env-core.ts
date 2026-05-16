@@ -10,6 +10,18 @@ const optionalUrlSchema = z.preprocess(
   z.string().url().optional(),
 );
 
+const optionalNumberSchema = z.preprocess((value) => {
+  if (value === '' || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    return Number(value);
+  }
+
+  return value;
+}, z.number().optional());
+
 const serverEnvSchema = z
   .object({
     NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -24,6 +36,19 @@ const serverEnvSchema = z
     LLM_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
     NEXTAUTH_SECRET: z.string().min(1),
     REDIS_URL: optionalUrlSchema,
+    TTS_PROVIDER: z.enum(['edge-tts', 'azure', 'browser-only']).default('browser-only'),
+    AZURE_SPEECH_KEY: optionalSecretSchema,
+    AZURE_SPEECH_REGION: z.string().trim().min(1).max(80).optional(),
+    AUDIO_STORAGE_PROVIDER: z.enum(['zeabur-volume', 'r2', 'vercel-blob']).default('zeabur-volume'),
+    R2_ACCOUNT_ID: optionalSecretSchema,
+    R2_ACCESS_KEY_ID: optionalSecretSchema,
+    R2_SECRET_ACCESS_KEY: optionalSecretSchema,
+    R2_BUCKET_NAME: z.string().trim().min(1).max(120).optional(),
+    DJ_CACHE_TTL_DAYS: optionalNumberSchema.pipe(z.number().int().min(1).max(365).default(30)),
+    DJ_PREFETCH_TRIGGER_RATIO: optionalNumberSchema.pipe(
+      z.number().min(0.1).max(0.95).default(0.5),
+    ),
+    ADMIN_CLEANUP_TOKEN: optionalSecretSchema,
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   })
   .superRefine((env, context) => {

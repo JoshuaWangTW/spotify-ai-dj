@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const DEFAULT_LLM_MODEL = 'gpt-4o';
-export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-6';
+export const DEFAULT_LLM_MODEL = 'gpt-4o-mini';
+export const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5';
 export const LLM_MODEL_STORAGE_KEY = 'spotify-ai-dj:llm-model';
 export const LLM_PROVIDER_STORAGE_KEY = 'spotify-ai-dj:llm-provider';
 
@@ -26,15 +26,15 @@ export type LlmModelOption = {
 
 export const OPENAI_MODEL_OPTIONS: LlmModelOption[] = [
   {
-    description: 'Default balanced model for planning and structured output.',
+    description: 'Default low-cost model for planning, chat, and short commentary.',
     id: DEFAULT_LLM_MODEL,
-    label: 'GPT-4o',
+    label: 'GPT-4o mini',
     provider: 'openai',
   },
   {
-    description: 'Lower cost option for chat and short commentary.',
-    id: 'gpt-4o-mini',
-    label: 'GPT-4o mini',
+    description: 'Balanced model for higher-quality structured planning when cost is acceptable.',
+    id: 'gpt-4o',
+    label: 'GPT-4o',
     provider: 'openai',
   },
   {
@@ -53,15 +53,15 @@ export const OPENAI_MODEL_OPTIONS: LlmModelOption[] = [
 
 export const ANTHROPIC_MODEL_OPTIONS: LlmModelOption[] = [
   {
-    description: 'Balanced Claude model for structured planning.',
+    description: 'Default low-cost Claude option for short structured generation.',
     id: DEFAULT_ANTHROPIC_MODEL,
-    label: 'Claude Sonnet 4.6',
+    label: 'Claude Haiku 4.5',
     provider: 'anthropic',
   },
   {
-    description: 'Lower cost Claude option when your Anthropic key has access.',
-    id: 'claude-haiku-4-5',
-    label: 'Claude Haiku 4.5',
+    description: 'Balanced Claude model for structured planning when cost is acceptable.',
+    id: 'claude-sonnet-4-6',
+    label: 'Claude Sonnet 4.6',
     provider: 'anthropic',
   },
   {

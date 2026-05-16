@@ -55,7 +55,6 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
   const autoTickInFlightRef = useRef(false);
 
   // Spotify playback (single hook instance at the shell level)
-  const playback = useSpotifyWebPlayback();
   const {
     segment,
     session: radioSession,
@@ -63,7 +62,11 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
     setActiveDeviceId,
     setPlayerActivator,
     tickSession,
+    ttsEnabled,
   } = useRadio();
+  const playback = useSpotifyWebPlayback({
+    djSchedulerEnabled: radioSession?.status === 'active' && ttsEnabled,
+  });
   const autoTransferAttemptedRef = useRef(false);
 
   // Reset scroll on tab change

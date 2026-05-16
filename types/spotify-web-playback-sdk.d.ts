@@ -32,6 +32,8 @@ type SpotifyWebPlaybackState = {
   position: number;
   track_window: {
     current_track: SpotifyWebPlaybackTrack;
+    next_tracks?: SpotifyWebPlaybackTrack[];
+    previous_tracks?: SpotifyWebPlaybackTrack[];
   };
 };
 
@@ -57,7 +59,9 @@ type SpotifyWebPlaybackPlayer = {
   disconnect(): void;
   getCurrentState(): Promise<SpotifyWebPlaybackState | null>;
   nextTrack(): Promise<void>;
+  pause(): Promise<void>;
   previousTrack(): Promise<void>;
+  resume(): Promise<void>;
   togglePlay(): Promise<void>;
 };
 

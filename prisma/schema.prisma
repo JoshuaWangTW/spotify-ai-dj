@@ -14,12 +14,14 @@ model User {
   spotifyUserId       String?  @unique
   displayName         String?
   spotifyRefreshToken String?
+  djPersonaId         String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   musicProfile           MusicProfile?
   sessions               ListeningSession[]
   radioSessions          RadioSession[]
+  djScriptCaches         DjScriptCache[]
   assistantConversations AssistantConversation[]
   musicMemories          MusicMemory[]
   feedback               TrackFeedback[]
@@ -101,6 +103,34 @@ model RadioEvent {
 
   @@index([sessionId, createdAt])
   @@index([segmentId])
+}
+
+model DjScriptCache {
+  id         String   @id @default(cuid())
+  userId     String
+  cacheKey   String   @unique
+  script     String   @db.Text
+  hitCount   Int      @default(0)
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, lastUsedAt])
+}
+
+model TtsAudioCache {
+  id         String   @id @default(cuid())
+  scriptHash String   @unique
+  voiceId    String
+  audioUrl   String
+  duration   Int
+  byteSize   Int
+  hitCount   Int      @default(0)
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  @@index([lastUsedAt])
 }
 
 model TrackFeedback {

@@ -42,8 +42,12 @@ try {
     '.',
     '--outDir',
     tempDir,
+    'scripts/test-dj-cache.ts',
+    'scripts/test-dj-scheduler.ts',
     'scripts/test-radio.ts',
   ]);
+  run(process.execPath, [join(tempDir, 'scripts/test-dj-cache.js')]);
+  run(process.execPath, [join(tempDir, 'scripts/test-dj-scheduler.js')]);
   run(process.execPath, [join(tempDir, 'scripts/test-radio.js')]);
 } finally {
   rmSync(tempDir, { force: true, recursive: true });

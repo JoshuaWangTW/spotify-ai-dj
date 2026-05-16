@@ -25,6 +25,31 @@ function testValidEnv() {
     assert.equal(result.data.LLM_PROVIDER, 'openai');
     assert.equal(result.data.ANTHROPIC_API_KEY, undefined);
     assert.equal(result.data.REDIS_URL, undefined);
+    assert.equal(result.data.TTS_PROVIDER, 'browser-only');
+    assert.equal(result.data.AUDIO_STORAGE_PROVIDER, 'zeabur-volume');
+    assert.equal(result.data.DJ_CACHE_TTL_DAYS, 30);
+    assert.equal(result.data.DJ_PREFETCH_TRIGGER_RATIO, 0.5);
+  }
+}
+
+function testOptionalPerformanceConfig() {
+  const result = parseServerEnv({
+    ...validEnv,
+    AUDIO_STORAGE_PROVIDER: 'r2',
+    AZURE_SPEECH_REGION: 'eastasia',
+    DJ_CACHE_TTL_DAYS: '45',
+    DJ_PREFETCH_TRIGGER_RATIO: '0.6',
+    TTS_PROVIDER: 'azure',
+  });
+
+  assert.equal(result.success, true);
+
+  if (result.success) {
+    assert.equal(result.data.AUDIO_STORAGE_PROVIDER, 'r2');
+    assert.equal(result.data.AZURE_SPEECH_REGION, 'eastasia');
+    assert.equal(result.data.DJ_CACHE_TTL_DAYS, 45);
+    assert.equal(result.data.DJ_PREFETCH_TRIGGER_RATIO, 0.6);
+    assert.equal(result.data.TTS_PROVIDER, 'azure');
   }
 }
 
@@ -112,6 +137,7 @@ function testProductionRejectsLocalhostRedirectUri() {
 }
 
 testValidEnv();
+testOptionalPerformanceConfig();
 testMissingRequiredFields();
 testAnthropicOnlyEnv();
 testStructuredError();

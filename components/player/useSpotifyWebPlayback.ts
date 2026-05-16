@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import {
+  buildRuleBasedDjCue,
+  DjScheduler,
+  type DjCue,
+  type DjSchedulerTrack,
+} from '../../lib/dj/scheduler';
+
 type PlaybackStatus =
   | 'loading'
   | 'auth_required'
@@ -16,6 +23,11 @@ type PlayerCommand = 'previous' | 'toggle' | 'next';
 type PlayerNotice = {
   message: string;
   tone: 'error' | 'info' | 'success';
+};
+
+type UseSpotifyWebPlaybackOptions = {
+  djPrefetchTriggerRatio?: number;
+  djSchedulerEnabled?: boolean;
 };
 
 export type TrackState = {
@@ -110,8 +122,98 @@ async function fetchSpotifyAccessToken(): Promise<TokenResponse> {
   return body;
 }
 
-export function useSpotifyWebPlayback() {
+function playAudioElement(audio: HTMLAudioElement): Promise<void> {
+  return new Promise((resolve, reject) => {
+    audio.onended = () => resolve();
+    audio.onerror = () => reject(new Error('DJ cue audio playback failed.'));
+
+    audio.play().catch(reject);
+  });
+}
+
+function speakBrowserText(text: string): Promise<void> {
+  if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-TW';
+    utterance.rate = 0.96;
+    utterance.pitch = 1;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
+async function playBrowserDjCue(cue: DjCue): Promise<void> {
+  if (cue.audioUrl) {
+    await playAudioElement(new Audio(cue.audioUrl));
+    return;
+  }
+
+  await speakBrowserText(cue.script);
+}
+
+function serializeDjTrack(track: DjSchedulerTrack) {
+  return {
+    artist: track.artist || 'Unknown artist',
+    artistUris: track.artistUris,
+    id: track.id,
+    title: track.title,
+    uri: track.uri,
+  };
+}
+
+async function prefetchBrowserDjCue(input: {
+  currentTrack: DjSchedulerTrack;
+  nextTrack: DjSchedulerTrack;
+}): Promise<DjCue> {
+  const fallbackCue = buildRuleBasedDjCue(input);
+
+  try {
+    const response = await fetch('/api/dj/prefetch', {
+      body: JSON.stringify({
+        hour: new Date().getHours(),
+        nextTrack: serializeDjTrack(input.nextTrack),
+        prevTrack: serializeDjTrack(input.currentTrack),
+        voiceId: 'browser-speech',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      return fallbackCue;
+    }
+
+    const body = (await response.json()) as {
+      audioUrl?: unknown;
+      script?: unknown;
+    };
+
+    if (typeof body.script !== 'string' || !body.script.trim()) {
+      return fallbackCue;
+    }
+
+    return {
+      audioUrl: typeof body.audioUrl === 'string' ? body.audioUrl : null,
+      script: body.script,
+      trackId: input.nextTrack.id,
+    };
+  } catch {
+    return fallbackCue;
+  }
+}
+
+export function useSpotifyWebPlayback(options: UseSpotifyWebPlaybackOptions = {}) {
   const browserDeviceActivatedRef = useRef(false);
+  const djPrefetchTriggerRatioRef = useRef(options.djPrefetchTriggerRatio);
+  const djSchedulerEnabledRef = useRef(Boolean(options.djSchedulerEnabled));
+  const djSchedulerRef = useRef<DjScheduler | null>(null);
   const mountedRef = useRef(false);
   const playerRef = useRef<SpotifyWebPlaybackPlayer | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -129,6 +231,14 @@ export function useSpotifyWebPlayback() {
 
     return Math.min(100, Math.max(0, (track.positionMs / track.durationMs) * 100));
   }, [track]);
+
+  useEffect(() => {
+    djSchedulerEnabledRef.current = Boolean(options.djSchedulerEnabled);
+  }, [options.djSchedulerEnabled]);
+
+  useEffect(() => {
+    djPrefetchTriggerRatioRef.current = options.djPrefetchTriggerRatio;
+  }, [options.djPrefetchTriggerRatio]);
 
   const updateNotice = useCallback((nextNotice: PlayerNotice | null) => {
     if (mountedRef.current) {
@@ -280,6 +390,23 @@ export function useSpotifyWebPlayback() {
       setNotice({ message: message || 'Spotify 播放發生錯誤。', tone: 'error' });
     });
 
+    const djScheduler = new DjScheduler({
+      isEnabled: () => djSchedulerEnabledRef.current,
+      onPlaybackError: () => {
+        // DJ cue playback is best-effort; never block Spotify playback.
+      },
+      onPrefetchError: () => {
+        // Missing a cue is acceptable. The next track should keep playing.
+      },
+      pauseSpotify: () => player.pause(),
+      playCue: playBrowserDjCue,
+      prefetchCue: prefetchBrowserDjCue,
+      prefetchTriggerRatio: djPrefetchTriggerRatioRef.current,
+      resumeSpotify: () => player.resume(),
+    });
+
+    djSchedulerRef.current = djScheduler;
+
     player.addListener('player_state_changed', (state) => {
       if (!state) {
         if (browserDeviceActivatedRef.current) {
@@ -300,6 +427,7 @@ export function useSpotifyWebPlayback() {
       }
 
       applyPlaybackState(state);
+      djScheduler.onStateChange(state);
     });
 
     playerRef.current = player;
@@ -317,6 +445,8 @@ export function useSpotifyWebPlayback() {
     });
 
     return () => {
+      djScheduler.dispose();
+      djSchedulerRef.current = null;
       player.disconnect();
       playerRef.current = null;
     };

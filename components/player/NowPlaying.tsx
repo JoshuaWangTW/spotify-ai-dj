@@ -22,10 +22,14 @@ function getSpotifyWebUrl(uri: string): string | null {
 }
 
 type NowPlayingProps = {
+  djSchedulerEnabled?: boolean;
   djMode?: string;
 };
 
-export default function NowPlaying({ djMode = 'jazz_intro' }: NowPlayingProps) {
+export default function NowPlaying({
+  djMode = 'jazz_intro',
+  djSchedulerEnabled = false,
+}: NowPlayingProps) {
   const {
     activateBrowserDevice,
     deviceId,
@@ -36,7 +40,7 @@ export default function NowPlaying({ djMode = 'jazz_intro' }: NowPlayingProps) {
     runPlayerCommand,
     status,
     track,
-  } = useSpotifyWebPlayback();
+  } = useSpotifyWebPlayback({ djSchedulerEnabled });
   const spotifyTrackUrl = track ? getSpotifyWebUrl(track.trackUri) : null;
   const noticeClassName =
     notice?.tone === 'success'
