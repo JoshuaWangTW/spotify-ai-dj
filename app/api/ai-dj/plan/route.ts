@@ -6,7 +6,9 @@ import { getSpotifySession } from '../../../../lib/auth/session';
 import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
-import { createOpenAiDjPlan, OpenAiPlanError } from '../../../../lib/llm/openai';
+import { AnthropicLlmError } from '../../../../lib/llm/anthropic';
+import { OpenAiPlanError } from '../../../../lib/llm/openai';
+import { createProviderDjPlan, LlmProviderConfigError } from '../../../../lib/llm/provider';
 
 export const runtime = 'nodejs';
 
@@ -72,11 +74,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const plan = await createOpenAiDjPlan(env.OPENAI_API_KEY, input.data, musicProfile);
+    const plan = await createProviderDjPlan(env, input.data, musicProfile);
 
     return NextResponse.json(plan);
   } catch (error) {
     if (error instanceof OpenAiPlanError) {
+      return jsonError(error.code, error.message, error.status);
+    }
+
+    if (error instanceof AnthropicLlmError || error instanceof LlmProviderConfigError) {
       return jsonError(error.code, error.message, error.status);
     }
 
@@ -86,8 +92,8 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof EnvValidationError) {
       return jsonError(
-        'OPENAI_API_KEY_MISSING',
-        'OpenAI API key is not configured on the server.',
+        'SERVER_CONFIG_INVALID',
+        'Server environment configuration is invalid.',
         500,
       );
     }

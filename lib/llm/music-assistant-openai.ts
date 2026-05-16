@@ -7,10 +7,10 @@ import {
   musicAssistantOutputSchema,
   type MusicAssistantOutput,
 } from '../music-assistant/schema';
+import { resolveLlmModel, type LlmModel } from './model-options';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_REQUEST_TIMEOUT_MS = 15_000;
-const OPENAI_ASSISTANT_MODEL = 'gpt-4o';
 
 const openAiErrorSchema = z
   .object({
@@ -150,7 +150,7 @@ function extractOutputText(response: z.infer<typeof openAiResponseSchema>): stri
   return null;
 }
 
-function buildAssistantSystemPrompt(): string {
+export function buildAssistantSystemPrompt(): string {
   return [
     '你是 Spotify AI DJ 的音樂助手，像 Hermes-style assistant：會透過對話理解使用者，但記憶必須可審計、可修正、不可神秘化。',
     '你的任務是陪使用者聊音樂、釐清偏好、學習目標、避免項與使用情境，並產生可供日後推薦使用的 memory candidates。',
@@ -167,7 +167,7 @@ function buildAssistantSystemPrompt(): string {
   ].join('\n');
 }
 
-function buildAssistantUserContext(input: {
+export function buildAssistantUserContext(input: {
   memory: MusicMemoryContext[];
   message: string;
   profile?: MusicProfileContext | null;
@@ -216,6 +216,7 @@ export async function createOpenAiMusicAssistantReply(
     recentMessages: ConversationMessageContext[];
     spotifyTasteSummary?: SpotifyTasteSummaryContext | null;
   },
+  options?: { model?: LlmModel | string | null },
 ): Promise<MusicAssistantOutput> {
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), OPENAI_REQUEST_TIMEOUT_MS);
@@ -240,7 +241,7 @@ export async function createOpenAiMusicAssistantReply(
           },
         ],
         max_output_tokens: 1100,
-        model: OPENAI_ASSISTANT_MODEL,
+        model: resolveLlmModel(options?.model),
         temperature: 0.45,
         text: {
           format: {

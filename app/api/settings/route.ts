@@ -3,7 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getSpotifySession } from '../../../lib/auth/session';
+import { rateLimitRequest, validateSameOriginRequest } from '../../../lib/api/security';
 import { validateServerEnv } from '../../../lib/config/env';
+import {
+  ANTHROPIC_MODEL_OPTIONS,
+  DEFAULT_LLM_MODEL,
+  OPENAI_MODEL_OPTIONS,
+  resolveLlmModel,
+} from '../../../lib/llm/model-options';
 
 export const runtime = 'nodejs';
 
@@ -21,7 +28,13 @@ function jsonError(code: string, message: string, status: number) {
   );
 }
 
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const originError = validateSameOriginRequest(request);
+
+  if (originError) {
+    return originError;
+  }
+
   const query = settingsQuerySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
 
   if (!query.success) {
@@ -29,8 +42,19 @@ export function GET(request: NextRequest) {
   }
 
   const session = getSpotifySession(request);
+
   if (!session) {
     return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
+  const rateLimitError = await rateLimitRequest({
+    key: `settings:${session.user.id}`,
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   const env = validateServerEnv();
@@ -39,7 +63,12 @@ export function GET(request: NextRequest) {
     return NextResponse.json({
       ok: false,
       issueCount: env.issues.length,
+      anthropicConfigured: false,
+      anthropicDefaultModel: resolveLlmModel(null, 'anthropic'),
+      anthropicModelOptions: ANTHROPIC_MODEL_OPTIONS,
       llmProvider: null,
+      openAiDefaultModel: DEFAULT_LLM_MODEL,
+      openAiModelOptions: OPENAI_MODEL_OPTIONS,
       openAiConfigured: false,
       spotifyConfigured: false,
     });
@@ -48,7 +77,12 @@ export function GET(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     issueCount: 0,
+    anthropicConfigured: Boolean(env.data.ANTHROPIC_API_KEY),
+    anthropicDefaultModel: resolveLlmModel(env.data.ANTHROPIC_MODEL, 'anthropic'),
+    anthropicModelOptions: ANTHROPIC_MODEL_OPTIONS,
     llmProvider: env.data.LLM_PROVIDER,
+    openAiDefaultModel: resolveLlmModel(env.data.OPENAI_MODEL),
+    openAiModelOptions: OPENAI_MODEL_OPTIONS,
     openAiConfigured: Boolean(env.data.OPENAI_API_KEY),
     spotifyConfigured: Boolean(
       env.data.SPOTIFY_CLIENT_ID && env.data.SPOTIFY_CLIENT_SECRET && env.data.SPOTIFY_REDIRECT_URI,

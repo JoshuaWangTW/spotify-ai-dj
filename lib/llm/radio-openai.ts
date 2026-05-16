@@ -10,10 +10,10 @@ import {
   type RadioSegmentPlanOutput,
   type RadioTickInput,
 } from '../radio/schema';
+import { resolveLlmModel, type LlmModel } from './model-options';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_REQUEST_TIMEOUT_MS = 15_000;
-const OPENAI_RADIO_MODEL = 'gpt-4o';
 
 const openAiErrorSchema = z
   .object({
@@ -147,7 +147,7 @@ function extractOutputText(response: z.infer<typeof openAiResponseSchema>): stri
   return null;
 }
 
-function buildRadioUserContext(input: {
+export function buildRadioUserContext(input: {
   feedback?: RadioTickInput['feedback'];
   playbackState?: RadioTickInput['playbackState'];
   previousSegment?: PreviousRadioSegmentContext | null;
@@ -202,6 +202,7 @@ export async function createOpenAiRadioSegment(
     programming: RadioProgrammingContext;
     prompt: string;
   },
+  options?: { model?: LlmModel | string | null },
 ): Promise<RadioSegmentPlanOutput> {
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), OPENAI_REQUEST_TIMEOUT_MS);
@@ -220,7 +221,7 @@ export async function createOpenAiRadioSegment(
           },
         ],
         max_output_tokens: 1300,
-        model: OPENAI_RADIO_MODEL,
+        model: resolveLlmModel(options?.model),
         temperature: 0.45,
         text: {
           format: {

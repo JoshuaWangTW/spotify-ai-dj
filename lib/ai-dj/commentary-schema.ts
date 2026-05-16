@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { llmModelSchema, llmProviderSchema } from '../llm/model-options';
 import { aiDjModeSchema } from './plan-schema';
 
 export const commentaryDepthSchema = z.enum(['short', 'deep']);
@@ -10,6 +11,8 @@ export const aiDjCommentaryInputSchema = z
     artistName: z.string().trim().min(1).max(160),
     mode: aiDjModeSchema.exclude(['auto']),
     depth: commentaryDepthSchema.default('short'),
+    llmModel: llmModelSchema.optional(),
+    llmProvider: llmProviderSchema.optional(),
   })
   .strict();
 

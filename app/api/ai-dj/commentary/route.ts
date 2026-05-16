@@ -7,7 +7,9 @@ import {
 import { rateLimitRequest, validateSameOriginRequest } from '../../../../lib/api/security';
 import { getSpotifySession } from '../../../../lib/auth/session';
 import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
-import { createOpenAiDjCommentary, OpenAiCommentaryError } from '../../../../lib/llm/openai';
+import { AnthropicLlmError } from '../../../../lib/llm/anthropic';
+import { OpenAiCommentaryError } from '../../../../lib/llm/openai';
+import { createProviderDjCommentary, LlmProviderConfigError } from '../../../../lib/llm/provider';
 
 export const runtime = 'nodejs';
 
@@ -32,10 +34,19 @@ function getCommentaryCache(): CommentaryCache {
 function getCacheKey(input: {
   artistName: string;
   depth: string;
+  llmModel?: string;
+  llmProvider?: string;
   mode: string;
   trackName: string;
 }): string {
-  return [input.trackName, input.artistName, input.mode, input.depth]
+  return [
+    input.trackName,
+    input.artistName,
+    input.mode,
+    input.depth,
+    input.llmProvider ?? 'default-provider',
+    input.llmModel ?? 'default-model',
+  ]
     .map((value) => value.trim().toLowerCase())
     .join('|');
 }
@@ -111,7 +122,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const env = getServerEnv();
-    const commentary = await createOpenAiDjCommentary(env.OPENAI_API_KEY, input.data);
+    const commentary = await createProviderDjCommentary(env, input.data);
 
     cache.set(cacheKey, commentary);
     pruneCommentaryCache(cache);
@@ -122,10 +133,14 @@ export async function POST(request: NextRequest) {
       return jsonError(error.code, error.message, error.status);
     }
 
+    if (error instanceof AnthropicLlmError || error instanceof LlmProviderConfigError) {
+      return jsonError(error.code, error.message, error.status);
+    }
+
     if (error instanceof EnvValidationError) {
       return jsonError(
-        'OPENAI_API_KEY_MISSING',
-        'OpenAI API key is not configured on the server.',
+        'SERVER_CONFIG_INVALID',
+        'Server environment configuration is invalid.',
         500,
       );
     }

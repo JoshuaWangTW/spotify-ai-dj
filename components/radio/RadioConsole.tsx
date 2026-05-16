@@ -10,6 +10,8 @@ import type {
   RadioStopOutput,
 } from '../../lib/radio/schema';
 import type { SpotifyTrackCandidate } from '../../lib/spotify-types';
+import LlmModelPicker from '../llm/LlmModelPicker';
+import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
 import NowPlaying from '../player/NowPlaying';
 import QueueList from '../queue/QueueList';
 
@@ -195,11 +197,14 @@ export default function RadioConsole() {
 
   const requestNextSegment = useCallback(
     async (input: { feedback: PendingFeedback[]; sessionId: string }): Promise<RadioTickOutput> => {
+      const llmSelection = readStoredLlmSelection();
       const response = await fetch('/api/radio/tick', {
         body: JSON.stringify({
           autoplayQueue: autoTickStateRef.current.autoplayQueue,
           clientTimeIso: new Date().toISOString(),
           feedback: input.feedback,
+          llmModel: llmSelection.llmModel,
+          llmProvider: llmSelection.llmProvider,
           sessionId: input.sessionId,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
@@ -299,10 +304,13 @@ export default function RadioConsole() {
       setFeedbackStatusByKey({});
 
       try {
+        const llmSelection = readStoredLlmSelection();
         const response = await fetch('/api/radio/start', {
           body: JSON.stringify({
             autoplayQueue,
             clientTimeIso: new Date().toISOString(),
+            llmModel: llmSelection.llmModel,
+            llmProvider: llmSelection.llmProvider,
             mode: modeOverride ?? mode,
             prompt: promptToUse,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -548,6 +556,10 @@ export default function RadioConsole() {
               }`}
             />
           </button>
+        </div>
+
+        <div className="mt-2 rounded-md border border-slate-200/70 bg-white/40 px-3 py-3">
+          <LlmModelPicker compact />
         </div>
 
         {errorMessage ? (

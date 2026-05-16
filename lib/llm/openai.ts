@@ -14,12 +14,12 @@ import {
   type AiDjPlanInput,
   type AiDjPlanOutput,
 } from '../ai-dj/plan-schema';
+import { resolveLlmModel, type LlmModel } from './model-options';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_REQUEST_TIMEOUT_MS = 15_000;
-const OPENAI_PLANNING_MODEL = 'gpt-4o';
 
-const planningSystemPrompt = [
+export const planningSystemPrompt = [
   '你是一個音樂播放策略引擎，專長是古典樂與爵士樂導聆。',
   '你不能假裝自己可以直接存取 Spotify 曲庫。',
   '你只能輸出 Spotify Search 可用的搜尋策略、播放邏輯與導聆方向。',
@@ -30,7 +30,7 @@ const planningSystemPrompt = [
   '請產生 8 到 10 個 Spotify search queries 與對應 queue reasoning。',
 ].join('\n');
 
-const commentarySystemPrompt = [
+export const commentarySystemPrompt = [
   '你是古典與爵士導聆 DJ。',
   '請針對目前曲目產生中文導聆。',
   '不要講歌詞。',
@@ -151,7 +151,10 @@ function createOpenAiRequestError(
   return new ErrorClass(`${prefix}_REQUEST_FAILED`, 'OpenAI request failed.', 502);
 }
 
-function buildUserContext(input: AiDjPlanInput, profile?: MusicProfileContext | null): string {
+export function buildUserContext(
+  input: AiDjPlanInput,
+  profile?: MusicProfileContext | null,
+): string {
   return [
     '使用者偏好摘要：',
     profile?.tasteSummary || '尚未建立偏好摘要。',
@@ -189,7 +192,7 @@ function extractOutputText(response: z.infer<typeof openAiResponseSchema>): stri
   return null;
 }
 
-function buildCommentaryUserContext(input: AiDjCommentaryInput): string {
+export function buildCommentaryUserContext(input: AiDjCommentaryInput): string {
   return [
     `曲目：${input.trackName}`,
     `演出者：${input.artistName}`,
@@ -205,6 +208,7 @@ export async function createOpenAiDjPlan(
   apiKey: string,
   input: AiDjPlanInput,
   profile?: MusicProfileContext | null,
+  options?: { model?: LlmModel | string | null },
 ): Promise<AiDjPlanOutput> {
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), OPENAI_REQUEST_TIMEOUT_MS);
@@ -212,7 +216,7 @@ export async function createOpenAiDjPlan(
   try {
     const response = await fetch(OPENAI_RESPONSES_URL, {
       body: JSON.stringify({
-        model: OPENAI_PLANNING_MODEL,
+        model: resolveLlmModel(options?.model),
         input: [
           {
             role: 'system',
@@ -302,6 +306,7 @@ export async function createOpenAiDjPlan(
 export async function createOpenAiDjCommentary(
   apiKey: string,
   input: AiDjCommentaryInput,
+  options?: { model?: LlmModel | string | null },
 ): Promise<AiDjCommentaryOutput> {
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), OPENAI_REQUEST_TIMEOUT_MS);
@@ -309,7 +314,7 @@ export async function createOpenAiDjCommentary(
   try {
     const response = await fetch(OPENAI_RESPONSES_URL, {
       body: JSON.stringify({
-        model: OPENAI_PLANNING_MODEL,
+        model: resolveLlmModel(options?.model),
         input: [
           {
             role: 'system',

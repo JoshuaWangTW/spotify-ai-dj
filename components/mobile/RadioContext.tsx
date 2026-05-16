@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { readStoredLlmModel } from '../llm/useLlmModelPreference';
+import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
 import type {
   AiDjMode,
   RadioSegmentResponse,
@@ -104,13 +104,15 @@ export function RadioProvider({ children }: ProviderProps) {
       setStarting(true);
       setError(null);
       try {
+        const llmSelection = readStoredLlmSelection();
         const r = await fetch('/api/radio/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             autoplayQueue,
             clientTimeIso: new Date().toISOString(),
-            llmModel: readStoredLlmModel(),
+            llmModel: llmSelection.llmModel,
+            llmProvider: llmSelection.llmProvider,
             mode,
             prompt: trimmed,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -123,10 +125,7 @@ export function RadioProvider({ children }: ProviderProps) {
         // If Spotify returned no tracks (e.g. rate-limited), treat as a
         // failed start so the caller does NOT open NowPlayingModal.
         if (body.segment.tracks.length === 0) {
-          setError(
-            body.queueWarning?.message ??
-              'Spotify 沒有找到可播放的曲目，請稍後再試。',
-          );
+          setError(body.queueWarning?.message ?? 'Spotify 沒有找到可播放的曲目，請稍後再試。');
           return null;
         }
         setSession(body.session);
@@ -149,6 +148,7 @@ export function RadioProvider({ children }: ProviderProps) {
     setTicking(true);
     setError(null);
     try {
+      const llmSelection = readStoredLlmSelection();
       const r = await fetch('/api/radio/tick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,7 +156,8 @@ export function RadioProvider({ children }: ProviderProps) {
           autoplayQueue: true,
           clientTimeIso: new Date().toISOString(),
           feedback: [],
-          llmModel: readStoredLlmModel(),
+          llmModel: llmSelection.llmModel,
+          llmProvider: llmSelection.llmProvider,
           sessionId: id,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
@@ -168,10 +169,7 @@ export function RadioProvider({ children }: ProviderProps) {
       // If tick returned no tracks, keep the current segment and warn.
       // Don't replace segment with an empty one — existing queue keeps playing.
       if (body.segment.tracks.length === 0) {
-        setError(
-          body.queueWarning?.message ??
-            'Spotify 暫時無法排入下一段曲目，將自動重試。',
-        );
+        setError(body.queueWarning?.message ?? 'Spotify 暫時無法排入下一段曲目，將自動重試。');
         return null;
       }
       setSession((cur) => (cur ? { ...cur, mode: body.session.mode } : cur));

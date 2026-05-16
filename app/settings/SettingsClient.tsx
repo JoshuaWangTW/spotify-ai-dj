@@ -1,9 +1,17 @@
 'use client';
 
+import LlmModelPicker from '../../components/llm/LlmModelPicker';
+import type { ANTHROPIC_MODEL_OPTIONS, OPENAI_MODEL_OPTIONS } from '../../lib/llm/model-options';
+
 type SettingsData = {
   issueCount: number;
+  anthropicConfigured: boolean;
+  anthropicDefaultModel: string;
+  anthropicModelOptions: typeof ANTHROPIC_MODEL_OPTIONS;
   llmProvider: 'openai' | 'anthropic' | null;
   ok: boolean;
+  openAiDefaultModel: string;
+  openAiModelOptions: typeof OPENAI_MODEL_OPTIONS;
   openAiConfigured: boolean;
   spotifyConfigured: boolean;
 } | null;
@@ -43,15 +51,27 @@ export default function SettingsClient({ initialData }: { initialData: SettingsD
           label="Spotify Client ID / Client Secret / Redirect URI"
         />
         <StatusRow configured={Boolean(initialData?.openAiConfigured)} label="OpenAI API key" />
+        <StatusRow
+          configured={Boolean(initialData?.anthropicConfigured)}
+          label="Anthropic API key"
+        />
       </div>
 
       <div className="rounded-lg border border-slate-200/80 bg-white/40 px-4 py-3 text-sm leading-6 text-slate-500">
         <p>LLM provider：{initialData?.llmProvider ?? '未設定'}</p>
+        <p className="mt-1">Server default model：{initialData?.openAiDefaultModel ?? 'gpt-4o'}</p>
+        <p className="mt-1">
+          Anthropic default model：{initialData?.anthropicDefaultModel ?? 'claude-sonnet-4-6'}
+        </p>
         {hasEnvIssues ? (
           <p className="mt-1 text-rose-200">
             目前 server environment 有 {initialData?.issueCount ?? 1} 個缺漏或無效設定。
           </p>
         ) : null}
+      </div>
+
+      <div className="rounded-lg border border-slate-200/80 bg-white/40 p-4">
+        <LlmModelPicker />
       </div>
     </div>
   );

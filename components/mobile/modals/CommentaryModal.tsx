@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { AiDjCommentaryOutput } from '../../../lib/ai-dj/commentary-schema';
+import { readStoredLlmSelection } from '../../llm/useLlmModelPreference';
 import type { TrackState } from '../../player/useSpotifyWebPlayback';
 import { useRadio } from '../RadioContext';
 import { findMode } from '../modes';
@@ -47,10 +48,18 @@ export default function CommentaryModal({ onClose, track }: Props) {
       setLoading(true);
       setError(null);
       try {
+        const llmSelection = readStoredLlmSelection();
         const r = await fetch('/api/ai-dj/commentary', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trackName, artistName, mode, depth: d }),
+          body: JSON.stringify({
+            trackName,
+            artistName,
+            mode,
+            depth: d,
+            llmModel: llmSelection.llmModel,
+            llmProvider: llmSelection.llmProvider,
+          }),
         });
         const body = (await r.json()) as AiDjCommentaryOutput | ApiError;
         if (!r.ok || isApiError(body)) {

@@ -38,10 +38,10 @@ function testMissingRequiredFields() {
   assert.equal(result.success, false);
 
   if (!result.success) {
-    assert.equal(result.issues.length, 2);
+    assert.equal(result.issues.length, 1);
     assert.deepEqual(
       result.issues.map((issue) => issue.code),
-      ['MISSING_REQUIRED_CONFIG', 'MISSING_REQUIRED_CONFIG'],
+      ['MISSING_REQUIRED_CONFIG'],
     );
     assert.equal(
       result.issues.some((issue) => JSON.stringify(issue).includes('OPENAI_API_KEY')),
@@ -51,6 +51,23 @@ function testMissingRequiredFields() {
       result.issues.some((issue) => JSON.stringify(issue).includes('SPOTIFY_CLIENT_SECRET')),
       false,
     );
+  }
+}
+
+function testAnthropicOnlyEnv() {
+  const result = parseServerEnv({
+    ...validEnv,
+    ANTHROPIC_API_KEY: 'anthropic-api-key',
+    LLM_PROVIDER: 'anthropic',
+    OPENAI_API_KEY: '',
+  });
+
+  assert.equal(result.success, true);
+
+  if (result.success) {
+    assert.equal(result.data.LLM_PROVIDER, 'anthropic');
+    assert.equal(result.data.OPENAI_API_KEY, undefined);
+    assert.equal(result.data.ANTHROPIC_API_KEY, 'anthropic-api-key');
   }
 }
 
@@ -96,6 +113,7 @@ function testProductionRejectsLocalhostRedirectUri() {
 
 testValidEnv();
 testMissingRequiredFields();
+testAnthropicOnlyEnv();
 testStructuredError();
 testProductionRejectsLocalhostRedirectUri();
 

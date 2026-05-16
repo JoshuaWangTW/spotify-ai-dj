@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { llmModelSchema, llmProviderSchema } from '../llm/model-options';
+
 export const aiDjModeSchema = z.enum([
   'auto',
   'jazz_intro',
@@ -13,6 +15,8 @@ export const aiDjPlanInputSchema = z
   .object({
     prompt: z.string().trim().min(1).max(500),
     mode: aiDjModeSchema.default('auto'),
+    llmModel: llmModelSchema.optional(),
+    llmProvider: llmProviderSchema.optional(),
     sessionId: z.string().trim().min(1).max(128).optional(),
   })
   .strict();

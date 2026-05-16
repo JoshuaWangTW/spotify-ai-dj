@@ -61,12 +61,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const env = getServerEnv();
+    if (!env.OPENAI_API_KEY) {
+      return jsonError(
+        'OPENAI_API_KEY_MISSING',
+        'OpenAI API key is not configured on the server.',
+        500,
+      );
+    }
     apiKey = env.OPENAI_API_KEY;
   } catch (error) {
     if (error instanceof EnvValidationError) {
       return jsonError(
-        'OPENAI_API_KEY_MISSING',
-        'OpenAI API key is not configured on the server.',
+        'SERVER_CONFIG_INVALID',
+        'Server environment configuration is invalid.',
         500,
       );
     }

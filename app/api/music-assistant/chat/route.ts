@@ -6,10 +6,12 @@ import { getValidSpotifyAccessToken } from '../../../../lib/auth/spotify-access-
 import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
+import { OpenAiMusicAssistantError } from '../../../../lib/llm/music-assistant-openai';
+import { AnthropicLlmError } from '../../../../lib/llm/anthropic';
 import {
-  createOpenAiMusicAssistantReply,
-  OpenAiMusicAssistantError,
-} from '../../../../lib/llm/music-assistant-openai';
+  createProviderMusicAssistantReply,
+  LlmProviderConfigError,
+} from '../../../../lib/llm/provider';
 import {
   musicAssistantChatInputSchema,
   musicAssistantChatOutputSchema,
@@ -188,7 +190,9 @@ export async function POST(request: NextRequest) {
     ]);
     const spotifyTasteSummary = buildSpotifyTasteSummary(topTracks);
 
-    const assistantOutput = await createOpenAiMusicAssistantReply(env.OPENAI_API_KEY, {
+    const assistantOutput = await createProviderMusicAssistantReply(env, {
+      llmModel: input.data.llmModel,
+      llmProvider: input.data.llmProvider,
       memory,
       message: input.data.message,
       profile: musicProfile,
@@ -298,14 +302,18 @@ export async function POST(request: NextRequest) {
       return jsonError(error.code, error.message, error.status);
     }
 
+    if (error instanceof AnthropicLlmError || error instanceof LlmProviderConfigError) {
+      return jsonError(error.code, error.message, error.status);
+    }
+
     if (isPrismaError(error)) {
       return jsonError('DATABASE_REQUEST_FAILED', 'Database request failed.', 500);
     }
 
     if (error instanceof EnvValidationError) {
       return jsonError(
-        'OPENAI_API_KEY_MISSING',
-        'OpenAI API key is not configured on the server.',
+        'SERVER_CONFIG_INVALID',
+        'Server environment configuration is invalid.',
         500,
       );
     }

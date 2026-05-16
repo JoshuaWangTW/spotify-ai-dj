@@ -1,12 +1,23 @@
 import SettingsClient from './SettingsClient';
 import { validateServerEnv } from '../../lib/config/env';
+import {
+  ANTHROPIC_MODEL_OPTIONS,
+  DEFAULT_LLM_MODEL,
+  OPENAI_MODEL_OPTIONS,
+  resolveLlmModel,
+} from '../../lib/llm/model-options';
 
 export const dynamic = 'force-dynamic';
 
 function getSettingsData(): {
   issueCount: number;
+  anthropicConfigured: boolean;
+  anthropicDefaultModel: string;
+  anthropicModelOptions: typeof ANTHROPIC_MODEL_OPTIONS;
   llmProvider: 'openai' | 'anthropic' | null;
   ok: boolean;
+  openAiDefaultModel: string;
+  openAiModelOptions: typeof OPENAI_MODEL_OPTIONS;
   openAiConfigured: boolean;
   spotifyConfigured: boolean;
 } | null {
@@ -15,8 +26,13 @@ function getSettingsData(): {
   if (!env.success) {
     return {
       issueCount: env.issues.length,
+      anthropicConfigured: false,
+      anthropicDefaultModel: resolveLlmModel(null, 'anthropic'),
+      anthropicModelOptions: ANTHROPIC_MODEL_OPTIONS,
       llmProvider: null,
       ok: false,
+      openAiDefaultModel: DEFAULT_LLM_MODEL,
+      openAiModelOptions: OPENAI_MODEL_OPTIONS,
       openAiConfigured: false,
       spotifyConfigured: false,
     };
@@ -24,8 +40,13 @@ function getSettingsData(): {
 
   return {
     issueCount: 0,
+    anthropicConfigured: Boolean(env.data.ANTHROPIC_API_KEY),
+    anthropicDefaultModel: resolveLlmModel(env.data.ANTHROPIC_MODEL, 'anthropic'),
+    anthropicModelOptions: ANTHROPIC_MODEL_OPTIONS,
     llmProvider: env.data.LLM_PROVIDER,
     ok: true,
+    openAiDefaultModel: resolveLlmModel(env.data.OPENAI_MODEL),
+    openAiModelOptions: OPENAI_MODEL_OPTIONS,
     openAiConfigured: Boolean(env.data.OPENAI_API_KEY),
     spotifyConfigured: Boolean(
       env.data.SPOTIFY_CLIENT_ID && env.data.SPOTIFY_CLIENT_SECRET && env.data.SPOTIFY_REDIRECT_URI,

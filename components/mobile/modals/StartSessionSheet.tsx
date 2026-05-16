@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 
+import LlmModelPicker from '../../llm/LlmModelPicker';
 import AlbumArtwork from '../AlbumArtwork';
 import { useRadio } from '../RadioContext';
 import { ASSISTANT_CUSTOM_MODE, MODES, type DjMode } from '../modes';
@@ -183,6 +184,12 @@ export default function StartSessionSheet({ mode, onClose, onStarted }: Props) {
               style={{ left: autoQueue ? 21 : 3, boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
             />
           </button>
+        </div>
+      </div>
+
+      <div className="px-5 pt-3">
+        <div className="glass-card rounded-2xl px-4 py-3">
+          <LlmModelPicker compact />
         </div>
       </div>
 

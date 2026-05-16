@@ -9,7 +9,9 @@ import { rateLimitRequest, validateSameOriginRequest } from '../../../../lib/api
 import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
-import { OpenAiRadioError, createOpenAiRadioSegment } from '../../../../lib/llm/radio-openai';
+import { AnthropicLlmError } from '../../../../lib/llm/anthropic';
+import { LlmProviderConfigError, createProviderRadioSegment } from '../../../../lib/llm/provider';
+import { OpenAiRadioError } from '../../../../lib/llm/radio-openai';
 import { determineRadioProgrammingContext } from '../../../../lib/radio/programming';
 import {
   radioStartInputSchema,
@@ -110,7 +112,9 @@ export async function POST(request: NextRequest) {
       where: { userId: session.user.id },
     });
 
-    const plan = await createOpenAiRadioSegment(env.OPENAI_API_KEY, {
+    const plan = await createProviderRadioSegment(env, {
+      llmModel: input.data.llmModel,
+      llmProvider: input.data.llmProvider,
       profile: musicProfile,
       programming,
       prompt: input.data.prompt,
@@ -219,6 +223,10 @@ export async function POST(request: NextRequest) {
       return jsonError(error.code, error.message, error.status);
     }
 
+    if (error instanceof AnthropicLlmError || error instanceof LlmProviderConfigError) {
+      return jsonError(error.code, error.message, error.status);
+    }
+
     if (error instanceof SpotifyAccessTokenError) {
       return jsonError(error.code, error.message, error.status);
     }
@@ -233,8 +241,8 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof EnvValidationError) {
       return jsonError(
-        'OPENAI_API_KEY_MISSING',
-        'OpenAI API key is not configured on the server.',
+        'SERVER_CONFIG_INVALID',
+        'Server environment configuration is invalid.',
         500,
       );
     }

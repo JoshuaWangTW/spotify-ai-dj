@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { AiDjPlanOutput } from '../../lib/ai-dj/plan-schema';
 import type { SpotifyTrackCandidate } from '../../lib/spotify-types';
 import ChatPanel from './ChatPanel';
+import LlmModelPicker from '../llm/LlmModelPicker';
+import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
 import NowPlaying from '../player/NowPlaying';
 import QueueList from '../queue/QueueList';
 
@@ -67,8 +69,11 @@ export default function AiDjWorkspace() {
     setQueueStatusByUri({});
 
     try {
+      const llmSelection = readStoredLlmSelection();
       const planResponse = await fetch('/api/ai-dj/plan', {
         body: JSON.stringify({
+          llmModel: llmSelection.llmModel,
+          llmProvider: llmSelection.llmProvider,
           mode: selectedMode,
           prompt,
         }),
@@ -155,8 +160,14 @@ export default function AiDjWorkspace() {
     setIsAutoRefilling(true);
 
     try {
+      const llmSelection = readStoredLlmSelection();
       const planRes = await fetch('/api/ai-dj/plan', {
-        body: JSON.stringify({ mode: state.selectedMode, prompt: state.prompt }),
+        body: JSON.stringify({
+          llmModel: llmSelection.llmModel,
+          llmProvider: llmSelection.llmProvider,
+          mode: state.selectedMode,
+          prompt: state.prompt,
+        }),
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
       });
@@ -394,6 +405,9 @@ export default function AiDjWorkspace() {
             prompt={prompt}
             selectedMode={selectedMode}
           />
+          <div className="mt-4 rounded-lg border border-slate-200/80 bg-white/40 p-4">
+            <LlmModelPicker />
+          </div>
         </div>
 
         <div

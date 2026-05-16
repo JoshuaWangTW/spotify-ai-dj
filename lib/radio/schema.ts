@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { aiDjModeSchema } from '../ai-dj/plan-schema';
+import { llmModelSchema, llmProviderSchema } from '../llm/model-options';
 
 export const radioSessionStatusSchema = z.enum(['active', 'stopped']);
 export const radioEventTypeSchema = z.enum([
@@ -16,6 +17,8 @@ export const radioStartInputSchema = z
   .object({
     autoplayQueue: z.boolean().default(true),
     clientTimeIso: z.string().datetime().optional(),
+    llmModel: llmModelSchema.optional(),
+    llmProvider: llmProviderSchema.optional(),
     mode: aiDjModeSchema.default('auto'),
     prompt: z.string().trim().min(1).max(500),
     timezone: z.string().trim().min(1).max(80).optional(),
@@ -55,6 +58,8 @@ export const radioTickInputSchema = z
     autoplayQueue: z.boolean().default(true),
     clientTimeIso: z.string().datetime().optional(),
     feedback: z.array(radioTickFeedbackSchema).max(10).default([]),
+    llmModel: llmModelSchema.optional(),
+    llmProvider: llmProviderSchema.optional(),
     playbackState: radioPlaybackStateSchema.optional(),
     sessionId: z.string().trim().min(1).max(128),
     timezone: z.string().trim().min(1).max(80).optional(),

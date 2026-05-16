@@ -46,10 +46,15 @@ SPOTIFY_CLIENT_ID=
 SPOTIFY_CLIENT_SECRET=
 SPOTIFY_REDIRECT_URI=https://your-domain/api/auth/spotify/callback
 OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-sonnet-4-6
 LLM_PROVIDER=openai
 NEXTAUTH_SECRET=
 NODE_ENV=production
 ```
+
+`OPENAI_MODEL` / `ANTHROPIC_MODEL` 是 server 預設模型；登入後也可在 Settings 選 OpenAI 或 Anthropic 並輸入 model id，該偏好只存在使用者瀏覽器，不會暴露 API key。
 
 部署前檢查：
 

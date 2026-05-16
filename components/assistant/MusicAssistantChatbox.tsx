@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import LlmModelPicker from '../llm/LlmModelPicker';
+import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
 import type { MusicAssistantChatOutput } from '../../lib/music-assistant/schema';
 
 type ApiError = {
@@ -76,10 +78,13 @@ export default function MusicAssistantChatbox() {
     setInput('');
 
     try {
+      const llmSelection = readStoredLlmSelection();
       const response = await fetch('/api/music-assistant/chat', {
         body: JSON.stringify({
           conversationId: conversationId ?? undefined,
           includeSpotifyTaste,
+          llmModel: llmSelection.llmModel,
+          llmProvider: llmSelection.llmProvider,
           message,
         }),
         headers: { 'Content-Type': 'application/json' },
@@ -162,6 +167,9 @@ export default function MusicAssistantChatbox() {
                 />
                 使用 Spotify Top Tracks 摘要
               </label>
+              <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                <LlmModelPicker compact />
+              </div>
             </div>
             <button
               className="rounded-md border border-violet-700 bg-violet-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-violet-800 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"

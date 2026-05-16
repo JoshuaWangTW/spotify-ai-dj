@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { MusicAssistantChatOutput } from '../../../lib/music-assistant/schema';
+import { readStoredLlmSelection } from '../../llm/useLlmModelPreference';
 import { useRadio } from '../RadioContext';
 import { IconClose, IconMore, IconSend, IconSpark } from '../icons';
 
@@ -68,6 +69,7 @@ export default function ChatSheet({ onClose, initialPrompt, onUseRadioPrompt }: 
       setSending(true);
       setError(null);
       try {
+        const llmSelection = readStoredLlmSelection();
         const r = await fetch('/api/music-assistant/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -75,6 +77,8 @@ export default function ChatSheet({ onClose, initialPrompt, onUseRadioPrompt }: 
             message: trimmed,
             conversationId: conversationId ?? undefined,
             includeSpotifyTaste: false,
+            llmModel: llmSelection.llmModel,
+            llmProvider: llmSelection.llmProvider,
           }),
         });
         const body = (await r.json()) as MusicAssistantChatOutput | ApiError;

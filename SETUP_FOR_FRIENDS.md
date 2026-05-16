@@ -64,8 +64,13 @@ SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
 SPOTIFY_REDIRECT_URI=http://localhost:3000/api/auth/spotify/callback
 
 OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-sonnet-4-6
 LLM_PROVIDER=openai
 ```
+
+`OPENAI_MODEL` and `ANTHROPIC_MODEL` are server defaults. After login, each user can also open Settings and choose OpenAI or Anthropic plus a model id for their browser. Leave `ANTHROPIC_API_KEY` empty if you only use OpenAI.
 
 For production, use:
 
