@@ -33,7 +33,13 @@ export default function MiniPlayer({ track, playing, onTogglePlay, onExpand }: P
           artist: segment.tracks[0].artist,
           cover: segment.tracks[0].albumImageUrl ?? null,
         }
-      : null;
+      : segment
+        ? {
+            title: segment.plan.segmentTitle,
+            artist: 'Spotify queue 暫時尚未排入曲目',
+            cover: null,
+          }
+        : null;
 
   if (!display) return null;
 

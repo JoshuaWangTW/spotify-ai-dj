@@ -15,6 +15,7 @@ import {
   radioTickInputSchema,
   radioTickOutputSchema,
   type AiDjMode,
+  type RadioQueueWarning,
   type RadioSegmentPlanOutput,
 } from '../../../../lib/radio/schema';
 import {
@@ -44,6 +45,18 @@ function buildSegmentResponse(input: {
     plan: input.plan,
     queuedTrackUris: input.queuedTrackUris,
     tracks: input.tracks.slice(0, 8),
+  };
+}
+
+function isBlockingSpotifyRadioError(error: SpotifyWebApiError): boolean {
+  return error.code === 'SPOTIFY_SEARCH_AUTH_FAILED' || error.code === 'SPOTIFY_SEARCH_FORBIDDEN';
+}
+
+function buildQueueWarning(error: SpotifyWebApiError): RadioQueueWarning {
+  return {
+    code: error.code,
+    message: error.message,
+    retryAfterSeconds: error.retryAfterSeconds,
   };
 }
 
@@ -133,13 +146,34 @@ export async function POST(request: NextRequest) {
       programming,
       prompt: radioSession.userPrompt,
     });
-    const tracks = await searchSpotifyTracks(token.accessToken, plan.spotifySearchQueries);
-    const queuedTrackUris = input.data.autoplayQueue
-      ? tracks.map((track) => track.spotifyUri).slice(0, 8)
-      : [];
+    let tracks: SpotifyTrackCandidate[] = [];
+    let queuedTrackUris: string[] = [];
+    let queueWarning: RadioQueueWarning | undefined;
 
-    if (queuedTrackUris.length > 0) {
-      await queueSpotifyTracks(token.accessToken, queuedTrackUris);
+    try {
+      tracks = await searchSpotifyTracks(token.accessToken, plan.spotifySearchQueries);
+      const trackUrisToQueue = input.data.autoplayQueue
+        ? tracks.map((track) => track.spotifyUri).slice(0, 8)
+        : [];
+
+      if (trackUrisToQueue.length > 0) {
+        try {
+          await queueSpotifyTracks(token.accessToken, trackUrisToQueue);
+          queuedTrackUris = trackUrisToQueue;
+        } catch (error) {
+          if (error instanceof SpotifyWebApiError) {
+            queueWarning = buildQueueWarning(error);
+          } else {
+            throw error;
+          }
+        }
+      }
+    } catch (error) {
+      if (error instanceof SpotifyWebApiError && !isBlockingSpotifyRadioError(error)) {
+        queueWarning = buildQueueWarning(error);
+      } else {
+        throw error;
+      }
     }
 
     const nextIndex = (previousSegment?.index ?? radioSession.currentSegmentIndex) + 1;
@@ -181,7 +215,7 @@ export async function POST(request: NextRequest) {
 
       await tx.radioEvent.create({
         data: {
-          payload: { queuedTrackUris },
+          payload: { queueWarning, queuedTrackUris },
           segmentId: createdSegment.id,
           sessionId: radioSession.id,
           type: 'segment_queued',
@@ -210,6 +244,7 @@ export async function POST(request: NextRequest) {
 
     const output = {
       ok: true,
+      queueWarning,
       segment: buildSegmentResponse({
         id: segment.id,
         index: segment.index,

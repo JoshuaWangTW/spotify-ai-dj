@@ -106,9 +106,18 @@ export const radioSegmentResponseSchema = z
   })
   .strict();
 
+export const radioQueueWarningSchema = z
+  .object({
+    code: z.string().trim().min(1).max(80),
+    message: z.string().trim().min(1).max(220),
+    retryAfterSeconds: z.number().int().positive().max(86_400).optional(),
+  })
+  .strict();
+
 export const radioStartOutputSchema = z
   .object({
     ok: z.literal(true),
+    queueWarning: radioQueueWarningSchema.optional(),
     segment: radioSegmentResponseSchema,
     session: z.object({
       id: z.string(),
@@ -122,6 +131,7 @@ export const radioStartOutputSchema = z
 export const radioTickOutputSchema = z
   .object({
     ok: z.literal(true),
+    queueWarning: radioQueueWarningSchema.optional(),
     segment: radioSegmentResponseSchema,
     session: z.object({
       id: z.string(),
@@ -147,6 +157,7 @@ export type RadioTickInput = z.infer<typeof radioTickInputSchema>;
 export type RadioStopInput = z.infer<typeof radioStopInputSchema>;
 export type RadioSegmentPlanOutput = z.infer<typeof radioSegmentPlanOutputSchema>;
 export type RadioSegmentResponse = z.infer<typeof radioSegmentResponseSchema>;
+export type RadioQueueWarning = z.infer<typeof radioQueueWarningSchema>;
 export type RadioStartOutput = z.infer<typeof radioStartOutputSchema>;
 export type RadioTickOutput = z.infer<typeof radioTickOutputSchema>;
 export type RadioStopOutput = z.infer<typeof radioStopOutputSchema>;

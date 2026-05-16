@@ -120,6 +120,7 @@ export function RadioProvider({ children }: ProviderProps) {
         }
         setSession(body.session);
         setSegment(body.segment);
+        setError(body.queueWarning?.message ?? null);
         return body;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Radio session 建立失敗。');
@@ -154,6 +155,7 @@ export function RadioProvider({ children }: ProviderProps) {
       }
       setSession((cur) => (cur ? { ...cur, mode: body.session.mode } : cur));
       setSegment(body.segment);
+      setError(body.queueWarning?.message ?? null);
       return body;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Radio tick 失敗。');

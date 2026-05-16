@@ -101,12 +101,14 @@ export class SpotifyTokenExchangeError extends Error {
 
 export class SpotifyWebApiError extends Error {
   readonly code: string;
+  readonly retryAfterSeconds?: number;
   readonly status: number;
 
-  constructor(code: string, message: string, status = 502) {
+  constructor(code: string, message: string, status = 502, retryAfterSeconds?: number) {
     super(message);
     this.name = 'SpotifyWebApiError';
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
     this.status = status;
   }
 }
@@ -261,26 +263,46 @@ function normalizeSpotifyTrack(
   };
 }
 
-function selectBestTrackCandidate(
+function selectBestTrackCandidates(
   tracks: Array<z.infer<typeof spotifySearchTrackSchema>>,
-): z.infer<typeof spotifySearchTrackSchema> | null {
+): Array<z.infer<typeof spotifySearchTrackSchema>> {
   const playableTracks = tracks.filter(
     (track) => track.is_playable !== false && track.is_playable !== null,
   );
 
-  return (
-    playableTracks.sort((first, second) => {
-      if (first.explicit !== second.explicit) {
-        return first.explicit ? 1 : -1;
-      }
+  return playableTracks.sort((first, second) => {
+    if (first.explicit !== second.explicit) {
+      return first.explicit ? 1 : -1;
+    }
 
-      return second.popularity - first.popularity;
-    })[0] ?? null
-  );
+    return second.popularity - first.popularity;
+  });
 }
 
-function createSpotifySearchStatusError(status: number): SpotifyWebApiError {
-  if (status === 401) {
+function parseRetryAfterSeconds(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const seconds = Number(value);
+
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.ceil(seconds);
+  }
+
+  const retryAt = Date.parse(value);
+
+  if (!Number.isNaN(retryAt)) {
+    return Math.max(1, Math.ceil((retryAt - Date.now()) / 1000));
+  }
+
+  return undefined;
+}
+
+function createSpotifySearchStatusError(response: Response): SpotifyWebApiError {
+  const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get('retry-after'));
+
+  if (response.status === 401) {
     return new SpotifyWebApiError(
       'SPOTIFY_SEARCH_AUTH_FAILED',
       'Spotify login expired. Please reconnect Spotify.',
@@ -288,7 +310,7 @@ function createSpotifySearchStatusError(status: number): SpotifyWebApiError {
     );
   }
 
-  if (status === 403) {
+  if (response.status === 403) {
     return new SpotifyWebApiError(
       'SPOTIFY_SEARCH_FORBIDDEN',
       'Spotify search was denied. Please check Spotify app access or reconnect Spotify.',
@@ -296,11 +318,14 @@ function createSpotifySearchStatusError(status: number): SpotifyWebApiError {
     );
   }
 
-  if (status === 429) {
+  if (response.status === 429) {
     return new SpotifyWebApiError(
       'SPOTIFY_SEARCH_RATE_LIMITED',
-      'Spotify rate limit was reached. Please try again later.',
+      retryAfterSeconds
+        ? `Spotify rate limit was reached. Please try again in about ${retryAfterSeconds} seconds.`
+        : 'Spotify rate limit was reached. Please try again later.',
       429,
+      retryAfterSeconds,
     );
   }
 
@@ -315,14 +340,15 @@ function isFatalSpotifySearchError(error: SpotifyWebApiError): boolean {
   );
 }
 
-async function searchSpotifyTrackForQuery(
+async function searchSpotifyTrackCandidatesForQuery(
   accessToken: string,
   query: string,
-): Promise<SpotifyTrackCandidate | null> {
+): Promise<SpotifyTrackCandidate[]> {
+  const normalizedQuery = query.trim().replace(/\s+/g, ' ');
   const searchUrl = new URL(SPOTIFY_SEARCH_URL);
-  searchUrl.searchParams.set('q', query.trim().replace(/\s+/g, ' '));
+  searchUrl.searchParams.set('q', normalizedQuery);
   searchUrl.searchParams.set('type', 'track');
-  searchUrl.searchParams.set('limit', '3');
+  searchUrl.searchParams.set('limit', '5');
   searchUrl.searchParams.set('market', 'from_token');
 
   const response = await fetch(searchUrl, {
@@ -333,7 +359,7 @@ async function searchSpotifyTrackForQuery(
   });
 
   if (!response.ok) {
-    throw createSpotifySearchStatusError(response.status);
+    throw createSpotifySearchStatusError(response);
   }
 
   const json = (await response.json()) as unknown;
@@ -347,9 +373,9 @@ async function searchSpotifyTrackForQuery(
     );
   }
 
-  const selectedTrack = selectBestTrackCandidate(parsed.data.tracks.items);
-
-  return selectedTrack ? normalizeSpotifyTrack(query, selectedTrack) : null;
+  return selectBestTrackCandidates(parsed.data.tracks.items)
+    .slice(0, 3)
+    .map((track) => normalizeSpotifyTrack(normalizedQuery, track));
 }
 
 export async function searchSpotifyTracks(
@@ -357,14 +383,28 @@ export async function searchSpotifyTracks(
   queries: string[],
 ): Promise<SpotifyTrackCandidate[]> {
   const candidates: SpotifyTrackCandidate[] = [];
+  const seenUris = new Set<string>();
   let recoverableFailureCount = 0;
 
   for (const query of queries) {
-    try {
-      const candidate = await searchSpotifyTrackForQuery(accessToken, query);
+    if (candidates.length >= 8) {
+      break;
+    }
 
-      if (candidate) {
+    try {
+      const queryCandidates = await searchSpotifyTrackCandidatesForQuery(accessToken, query);
+
+      for (const candidate of queryCandidates) {
+        if (seenUris.has(candidate.spotifyUri)) {
+          continue;
+        }
+
         candidates.push(candidate);
+        seenUris.add(candidate.spotifyUri);
+
+        if (candidates.length >= 8) {
+          break;
+        }
       }
     } catch (error) {
       if (error instanceof SpotifyWebApiError) {

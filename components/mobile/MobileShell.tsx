@@ -69,7 +69,7 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
     }
 
     const interval = window.setInterval(() => {
-      if (autoTickInFlightRef.current) {
+      if (autoTickInFlightRef.current || segment?.tracks.length === 0) {
         return;
       }
 
@@ -97,7 +97,7 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
     }, AUTO_TICK_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
-  }, [radioSession?.id, radioSession?.status, tickSession]);
+  }, [radioSession?.id, radioSession?.status, segment?.tracks.length, tickSession]);
 
   const openNowPlaying = useCallback(() => setShowNowPlaying(true), []);
   const closeNowPlaying = useCallback(() => setShowNowPlaying(false), []);

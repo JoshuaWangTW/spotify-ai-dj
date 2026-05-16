@@ -86,6 +86,7 @@ export default function RadioConsole() {
   const autoTickStateRef = useRef({
     autoplayQueue: true,
     pendingFeedback: [] as PendingFeedback[],
+    segmentTrackCount: 0,
     sessionId: null as string | null,
     sessionStatus: null as RadioStartOutput['session']['status'] | null,
   });
@@ -183,6 +184,7 @@ export default function RadioConsole() {
       setTracks(body.segment.tracks);
       setQueueStatusByUri(buildQueueStatus(body.segment));
       setPendingFeedback([]);
+      setErrorMessage(body.queueWarning?.message ?? null);
 
       if (body.segment.plan.djIntro) {
         void playDjIntroTts(body.segment.plan.djIntro);
@@ -224,6 +226,7 @@ export default function RadioConsole() {
     if (
       autoTickInFlightRef.current ||
       !state.autoplayQueue ||
+      state.segmentTrackCount === 0 ||
       !state.sessionId ||
       state.sessionStatus !== 'active'
     ) {
@@ -253,7 +256,6 @@ export default function RadioConsole() {
       });
 
       applyTickResult(body);
-      setErrorMessage(null);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '自動補歌失敗。');
     } finally {
@@ -265,10 +267,11 @@ export default function RadioConsole() {
     autoTickStateRef.current = {
       autoplayQueue,
       pendingFeedback,
+      segmentTrackCount: segment?.tracks.length ?? 0,
       sessionId: session?.id ?? null,
       sessionStatus: session?.status ?? null,
     };
-  }, [autoplayQueue, pendingFeedback, session?.id, session?.status]);
+  }, [autoplayQueue, pendingFeedback, segment?.tracks.length, session?.id, session?.status]);
 
   useEffect(() => {
     if (session?.status !== 'active' || !autoplayQueue) {
@@ -321,6 +324,7 @@ export default function RadioConsole() {
         setTracks(body.segment.tracks);
         setQueueStatusByUri(buildQueueStatus(body.segment));
         setPrompt(promptToUse);
+        setErrorMessage(body.queueWarning?.message ?? null);
 
         if (body.segment.plan.djIntro) {
           void playDjIntroTts(body.segment.plan.djIntro);

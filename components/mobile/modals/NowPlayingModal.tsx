@@ -44,14 +44,21 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
     status,
     track,
   } = playback;
-  const { segment } = useRadio();
+  const { errorMessage, segment } = useRadio();
   const [liked, setLiked] = useState(false);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState(false);
 
   const cover = track?.albumImageUrl ?? segment?.tracks[0]?.albumImageUrl ?? null;
-  const title = track?.title ?? segment?.tracks[0]?.title ?? '等待 Spotify 播放狀態';
-  const artist = track?.artist ?? segment?.tracks[0]?.artist ?? '尚未收到曲目資料';
+  const title =
+    track?.title ??
+    segment?.tracks[0]?.title ??
+    segment?.plan.segmentTitle ??
+    '等待 Spotify 播放狀態';
+  const artist =
+    track?.artist ??
+    segment?.tracks[0]?.artist ??
+    (segment ? 'Spotify queue 暫時尚未排入曲目' : '尚未收到曲目資料');
   const noticeTone =
     notice?.tone === 'success'
       ? 'border-emerald-300/60 bg-emerald-50 text-emerald-700'
@@ -243,6 +250,14 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
         <div className="px-6 pb-2">
           <div className={`rounded-md border px-3 py-2 text-xs leading-5 ${noticeTone}`}>
             {notice.message}
+          </div>
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <div className="px-6 pb-2">
+          <div className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+            {errorMessage}
           </div>
         </div>
       ) : null}
