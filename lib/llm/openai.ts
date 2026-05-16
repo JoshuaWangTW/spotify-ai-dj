@@ -141,19 +141,11 @@ function createOpenAiRequestError(
   }
 
   if (status === 429) {
-    return new ErrorClass(
-      `${prefix}_RATE_LIMITED`,
-      'OpenAI quota or rate limit was reached.',
-      429,
-    );
+    return new ErrorClass(`${prefix}_RATE_LIMITED`, 'OpenAI quota or rate limit was reached.', 429);
   }
 
   if (status === 400) {
-    return new ErrorClass(
-      `${prefix}_BAD_REQUEST`,
-      'OpenAI rejected the request format.',
-      502,
-    );
+    return new ErrorClass(`${prefix}_BAD_REQUEST`, 'OpenAI rejected the request format.', 502);
   }
 
   return new ErrorClass(`${prefix}_REQUEST_FAILED`, 'OpenAI request failed.', 502);

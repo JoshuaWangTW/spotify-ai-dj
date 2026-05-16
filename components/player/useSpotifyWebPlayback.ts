@@ -359,35 +359,38 @@ export function useSpotifyWebPlayback() {
     }
   }, [deviceId, syncCurrentPlayerState]);
 
-  const runPlayerCommand = useCallback(async (command: PlayerCommand) => {
-    const player = playerRef.current;
+  const runPlayerCommand = useCallback(
+    async (command: PlayerCommand) => {
+      const player = playerRef.current;
 
-    if (!player) {
-      setStatus('error');
-      setNotice({ message: 'Spotify player 尚未初始化。', tone: 'error' });
-      return;
-    }
-
-    try {
-      await player.activateElement();
-
-      if (command === 'previous') {
-        await player.previousTrack();
-      } else if (command === 'next') {
-        await player.nextTrack();
-      } else {
-        await player.togglePlay();
+      if (!player) {
+        setStatus('error');
+        setNotice({ message: 'Spotify player 尚未初始化。', tone: 'error' });
+        return;
       }
 
-      await syncCurrentPlayerState();
-    } catch {
-      setStatus('error');
-      setNotice({
-        message: 'Spotify 播放控制失敗，請確認已有 active playback device。',
-        tone: 'error',
-      });
-    }
-  }, [syncCurrentPlayerState]);
+      try {
+        await player.activateElement();
+
+        if (command === 'previous') {
+          await player.previousTrack();
+        } else if (command === 'next') {
+          await player.nextTrack();
+        } else {
+          await player.togglePlay();
+        }
+
+        await syncCurrentPlayerState();
+      } catch {
+        setStatus('error');
+        setNotice({
+          message: 'Spotify 播放控制失敗，請確認已有 active playback device。',
+          tone: 'error',
+        });
+      }
+    },
+    [syncCurrentPlayerState],
+  );
 
   return {
     activateBrowserDevice,

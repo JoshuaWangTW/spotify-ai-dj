@@ -8,9 +8,7 @@ import {
   getSpotifySession,
   validateOAuthState,
 } from '../../../../../lib/auth/session';
-import {
-  encryptSpotifyRefreshToken,
-} from '../../../../../lib/auth/token-encryption';
+import { encryptSpotifyRefreshToken } from '../../../../../lib/auth/token-encryption';
 import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
 import {
   exchangeSpotifyAuthorizationCode,

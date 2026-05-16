@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getSpotifySession, generateOpaqueToken, setOAuthStateCookie } from '../../../../../lib/auth/session';
+import {
+  getSpotifySession,
+  generateOpaqueToken,
+  setOAuthStateCookie,
+} from '../../../../../lib/auth/session';
 import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
 import { buildSpotifyAuthorizeUrl, type SpotifyAppCredentials } from '../../../../../lib/spotify';
 

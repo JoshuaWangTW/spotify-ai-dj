@@ -113,9 +113,7 @@ export default function AiDjWorkspace() {
 
       if (foundTracks.length > 0) {
         const uris = foundTracks.map((t) => t.spotifyUri);
-        setQueueStatusByUri(
-          Object.fromEntries(uris.map((uri) => [uri, 'adding' as const])),
-        );
+        setQueueStatusByUri(Object.fromEntries(uris.map((uri) => [uri, 'adding' as const])));
 
         const queueResponse = await fetch('/api/spotify/queue', {
           body: JSON.stringify({ spotifyUris: uris }),
@@ -124,16 +122,17 @@ export default function AiDjWorkspace() {
         });
 
         if (queueResponse.ok) {
-          setQueueStatusByUri(
-            Object.fromEntries(uris.map((uri) => [uri, 'added' as const])),
-          );
+          setQueueStatusByUri(Object.fromEntries(uris.map((uri) => [uri, 'added' as const])));
         } else {
-          setQueueStatusByUri(
-            Object.fromEntries(uris.map((uri) => [uri, 'error' as const])),
-          );
+          setQueueStatusByUri(Object.fromEntries(uris.map((uri) => [uri, 'error' as const])));
           const queueBody = await readJsonResponse<ApiError>(queueResponse, '');
           if (isApiError(queueBody)) {
-            setErrorMessage(getApiErrorMessage(queueBody, '加入播放列表失敗，請確認 Spotify 有開啟並有 active device。'));
+            setErrorMessage(
+              getApiErrorMessage(
+                queueBody,
+                '加入播放列表失敗，請確認 Spotify 有開啟並有 active device。',
+              ),
+            );
           }
         }
       }
@@ -348,7 +347,11 @@ export default function AiDjWorkspace() {
       {tracks.length > 0 ? (
         <div className="glass-panel flex items-center justify-between rounded-lg px-4 py-2.5">
           <span className="text-sm text-slate-600">
-            {isAutoRefilling ? '補充曲目中...' : continuousPlay ? '輪播開啟 — queue ≤ 1 首時自動補歌' : '輪播關閉'}
+            {isAutoRefilling
+              ? '補充曲目中...'
+              : continuousPlay
+                ? '輪播開啟 — queue ≤ 1 首時自動補歌'
+                : '輪播關閉'}
           </span>
           <button
             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${

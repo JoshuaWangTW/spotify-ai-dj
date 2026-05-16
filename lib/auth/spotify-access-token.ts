@@ -11,7 +11,11 @@ import {
 import { EnvValidationError, getServerEnv } from '../config/env';
 import { isPrismaError } from '../db/errors';
 import { prisma } from '../db/prisma';
-import { refreshSpotifyAccessToken, SpotifyTokenExchangeError, type SpotifyAppCredentials } from '../spotify';
+import {
+  refreshSpotifyAccessToken,
+  SpotifyTokenExchangeError,
+  type SpotifyAppCredentials,
+} from '../spotify';
 
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
 
@@ -81,8 +85,7 @@ export async function getValidSpotifyAccessToken(request: NextRequest): Promise<
       const stored = await getStoredCredentials(session.user.id);
       const env = getServerEnv();
 
-      const refreshToken =
-        session.spotify?.refreshToken ?? stored.refreshToken;
+      const refreshToken = session.spotify?.refreshToken ?? stored.refreshToken;
 
       if (!refreshToken) {
         throw new SpotifyAccessTokenError(

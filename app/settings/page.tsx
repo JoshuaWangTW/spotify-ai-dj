@@ -3,15 +3,13 @@ import { validateServerEnv } from '../../lib/config/env';
 
 export const dynamic = 'force-dynamic';
 
-function getSettingsData():
-  | {
-      issueCount: number;
-      llmProvider: 'openai' | 'anthropic' | null;
-      ok: boolean;
-      openAiConfigured: boolean;
-      spotifyConfigured: boolean;
-    }
-  | null {
+function getSettingsData(): {
+  issueCount: number;
+  llmProvider: 'openai' | 'anthropic' | null;
+  ok: boolean;
+  openAiConfigured: boolean;
+  spotifyConfigured: boolean;
+} | null {
   const env = validateServerEnv();
 
   if (!env.success) {
@@ -30,9 +28,7 @@ function getSettingsData():
     ok: true,
     openAiConfigured: Boolean(env.data.OPENAI_API_KEY),
     spotifyConfigured: Boolean(
-      env.data.SPOTIFY_CLIENT_ID &&
-        env.data.SPOTIFY_CLIENT_SECRET &&
-        env.data.SPOTIFY_REDIRECT_URI,
+      env.data.SPOTIFY_CLIENT_ID && env.data.SPOTIFY_CLIENT_SECRET && env.data.SPOTIFY_REDIRECT_URI,
     ),
   };
 }

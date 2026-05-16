@@ -43,9 +43,7 @@ function buildProfileSummaryPatch(output: MusicAssistantOutput): {
   return patch;
 }
 
-function buildSpotifyTasteSummary(
-  tracks: SpotifyTrackSummary[] | null,
-): {
+function buildSpotifyTasteSummary(tracks: SpotifyTrackSummary[] | null): {
   signals: string[];
   source: string;
   summary: string;
@@ -57,7 +55,10 @@ function buildSpotifyTasteSummary(
   const artistCounts = new Map<string, number>();
 
   for (const track of tracks) {
-    for (const artist of track.artist.split(',').map((value) => value.trim()).filter(Boolean)) {
+    for (const artist of track.artist
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)) {
       artistCounts.set(artist, (artistCounts.get(artist) ?? 0) + 1);
     }
   }
@@ -69,10 +70,7 @@ function buildSpotifyTasteSummary(
   const averagePopularity = Math.round(
     tracks.reduce((sum, track) => sum + track.popularity, 0) / tracks.length,
   );
-  const signals = [
-    `top_tracks_count=${tracks.length}`,
-    `average_popularity=${averagePopularity}`,
-  ];
+  const signals = [`top_tracks_count=${tracks.length}`, `average_popularity=${averagePopularity}`];
 
   if (frequentArtists.length > 0) {
     signals.push(`frequent_artists=${frequentArtists.join(', ')}`);

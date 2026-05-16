@@ -8,9 +8,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   const isLoggedIn = await hasValidSessionCookie(request);
 
-  const isProtected = PROTECTED_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(p + '/'),
-  );
+  const isProtected = PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isAuthPage = AUTH_PATHS.includes(pathname);
 
   if (isProtected && !isLoggedIn) {

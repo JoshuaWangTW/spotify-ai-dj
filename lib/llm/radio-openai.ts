@@ -131,7 +131,11 @@ function extractOutputText(response: z.infer<typeof openAiResponseSchema>): stri
   for (const item of response.output ?? []) {
     for (const content of item.content ?? []) {
       if (content.refusal) {
-        throw new OpenAiRadioError('OPENAI_RADIO_REFUSAL', 'OpenAI refused to generate radio.', 422);
+        throw new OpenAiRadioError(
+          'OPENAI_RADIO_REFUSAL',
+          'OpenAI refused to generate radio.',
+          422,
+        );
       }
 
       if (content.text) {

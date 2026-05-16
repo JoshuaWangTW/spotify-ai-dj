@@ -51,9 +51,7 @@ export function GET(request: NextRequest) {
     llmProvider: env.data.LLM_PROVIDER,
     openAiConfigured: Boolean(env.data.OPENAI_API_KEY),
     spotifyConfigured: Boolean(
-      env.data.SPOTIFY_CLIENT_ID &&
-        env.data.SPOTIFY_CLIENT_SECRET &&
-        env.data.SPOTIFY_REDIRECT_URI,
+      env.data.SPOTIFY_CLIENT_ID && env.data.SPOTIFY_CLIENT_SECRET && env.data.SPOTIFY_REDIRECT_URI,
     ),
   });
 }

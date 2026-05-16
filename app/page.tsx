@@ -40,7 +40,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const authResult = typeof params.auth === 'string' ? params.auth : null;
   const authError = typeof params.auth_error === 'string' ? params.auth_error : null;
 
-  const spotifyConnected = authResult === 'spotify_connected' || sessionUser?.spotifyConnected === true;
+  const spotifyConnected =
+    authResult === 'spotify_connected' || sessionUser?.spotifyConnected === true;
 
   return (
     <main className="liquid-shell min-h-screen px-4 py-6 text-slate-700 sm:px-6 lg:px-8">

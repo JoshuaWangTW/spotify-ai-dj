@@ -146,9 +146,9 @@ export async function exchangeSpotifyAuthorizationCode(
         redirect_uri: creds.redirectUri,
       }),
       headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${creds.clientId}:${creds.clientSecret}`,
-        ).toString('base64')}`,
+        Authorization: `Basic ${Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString(
+          'base64',
+        )}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       method: 'POST',
@@ -202,9 +202,9 @@ export async function refreshSpotifyAccessToken(
         refresh_token: refreshToken,
       }),
       headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${creds.clientId}:${creds.clientSecret}`,
-        ).toString('base64')}`,
+        Authorization: `Basic ${Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString(
+          'base64',
+        )}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       method: 'POST',
@@ -264,7 +264,9 @@ function normalizeSpotifyTrack(
 function selectBestTrackCandidate(
   tracks: Array<z.infer<typeof spotifySearchTrackSchema>>,
 ): z.infer<typeof spotifySearchTrackSchema> | null {
-  const playableTracks = tracks.filter((track) => track.is_playable !== false && track.is_playable !== null);
+  const playableTracks = tracks.filter(
+    (track) => track.is_playable !== false && track.is_playable !== null,
+  );
 
   return (
     playableTracks.sort((first, second) => {

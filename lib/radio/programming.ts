@@ -110,7 +110,10 @@ function inferSituation(
   return period === 'late_night' ? 'late-night jazz guidance' : 'jazz learning';
 }
 
-function inferEnergy(mode: RadioProgrammingContext['mode'], period: RadioProgrammingContext['period']): number {
+function inferEnergy(
+  mode: RadioProgrammingContext['mode'],
+  period: RadioProgrammingContext['period'],
+): number {
   const baseByMode: Record<RadioProgrammingContext['mode'], number> = {
     classical_intro: 0.38,
     coffee_roasting: 0.55,

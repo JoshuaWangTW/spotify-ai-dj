@@ -8,13 +8,7 @@ type SettingsData = {
   spotifyConfigured: boolean;
 } | null;
 
-function StatusRow({
-  configured,
-  label,
-}: {
-  configured: boolean;
-  label: string;
-}) {
+function StatusRow({ configured, label }: { configured: boolean; label: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200/80 bg-white/40 px-4 py-3">
       <span className="text-sm text-slate-600">{label}</span>

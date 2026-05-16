@@ -22,13 +22,7 @@ type ApiError = {
 
 type QueueStatus = 'idle' | 'adding' | 'added' | 'error';
 type FeedbackStatus = 'idle' | 'saving' | 'saved' | 'error';
-type FeedbackType =
-  | 'like'
-  | 'dislike'
-  | 'too_loud'
-  | 'no_vocals'
-  | 'work_focus'
-  | 'more_detail';
+type FeedbackType = 'like' | 'dislike' | 'too_loud' | 'no_vocals' | 'work_focus' | 'more_detail';
 
 type PendingFeedback = {
   feedbackType: FeedbackType;
@@ -138,85 +132,91 @@ export default function RadioConsole() {
 
   useEffect(() => stopDjIntroTts, [stopDjIntroTts]);
 
-  const playDjIntroTts = useCallback(async (text: string) => {
-    if (!ttsEnabledRef.current) {
-      return;
-    }
-
-    stopDjIntroTts();
-
-    try {
-      const response = await fetch('/api/ai-dj/commentary/tts', {
-        body: JSON.stringify({ text }),
-        headers: { 'Content-Type': 'application/json' },
-        method: 'POST',
-      });
-
-      if (!response.ok) {
+  const playDjIntroTts = useCallback(
+    async (text: string) => {
+      if (!ttsEnabledRef.current) {
         return;
       }
 
-      const blob = await response.blob();
-      const audioUrl = URL.createObjectURL(blob);
-      const audio = new Audio(audioUrl);
-      const audioState = { audio, objectUrl: audioUrl };
-      djIntroAudioRef.current = audioState;
-
-      const clearAudioState = () => {
-        if (djIntroAudioRef.current === audioState) {
-          URL.revokeObjectURL(audioUrl);
-          djIntroAudioRef.current = null;
-        }
-      };
-
-      audio.onended = clearAudioState;
-      audio.onerror = clearAudioState;
-
-      await audio.play();
-    } catch {
       stopDjIntroTts();
-      // TTS 失敗不中斷主流程
-    }
-  }, [stopDjIntroTts]);
 
-  const applyTickResult = useCallback((body: RadioTickOutput) => {
-    setSession((current) => (current ? { ...current, mode: body.session.mode } : current));
-    setSegment(body.segment);
-    setTracks(body.segment.tracks);
-    setQueueStatusByUri(buildQueueStatus(body.segment));
-    setPendingFeedback([]);
+      try {
+        const response = await fetch('/api/ai-dj/commentary/tts', {
+          body: JSON.stringify({ text }),
+          headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+        });
 
-    if (body.segment.plan.djIntro) {
-      void playDjIntroTts(body.segment.plan.djIntro);
-    }
-  }, [playDjIntroTts]);
+        if (!response.ok) {
+          return;
+        }
 
-  const requestNextSegment = useCallback(async (input: {
-    feedback: PendingFeedback[];
-    sessionId: string;
-  }): Promise<RadioTickOutput> => {
-    const response = await fetch('/api/radio/tick', {
-      body: JSON.stringify({
-        autoplayQueue: autoTickStateRef.current.autoplayQueue,
-        clientTimeIso: new Date().toISOString(),
-        feedback: input.feedback,
-        sessionId: input.sessionId,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }),
-      headers: { 'Content-Type': 'application/json' },
-      method: 'POST',
-    });
-    const body = await readJsonResponse<RadioTickOutput | ApiError>(
-      response,
-      'Radio tick 回傳格式錯誤。',
-    );
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        const audioState = { audio, objectUrl: audioUrl };
+        djIntroAudioRef.current = audioState;
 
-    if (!response.ok || isApiError(body)) {
-      throw new Error(getApiErrorMessage(body, 'Radio tick 失敗。'));
-    }
+        const clearAudioState = () => {
+          if (djIntroAudioRef.current === audioState) {
+            URL.revokeObjectURL(audioUrl);
+            djIntroAudioRef.current = null;
+          }
+        };
 
-    return body;
-  }, []);
+        audio.onended = clearAudioState;
+        audio.onerror = clearAudioState;
+
+        await audio.play();
+      } catch {
+        stopDjIntroTts();
+        // TTS 失敗不中斷主流程
+      }
+    },
+    [stopDjIntroTts],
+  );
+
+  const applyTickResult = useCallback(
+    (body: RadioTickOutput) => {
+      setSession((current) => (current ? { ...current, mode: body.session.mode } : current));
+      setSegment(body.segment);
+      setTracks(body.segment.tracks);
+      setQueueStatusByUri(buildQueueStatus(body.segment));
+      setPendingFeedback([]);
+
+      if (body.segment.plan.djIntro) {
+        void playDjIntroTts(body.segment.plan.djIntro);
+      }
+    },
+    [playDjIntroTts],
+  );
+
+  const requestNextSegment = useCallback(
+    async (input: { feedback: PendingFeedback[]; sessionId: string }): Promise<RadioTickOutput> => {
+      const response = await fetch('/api/radio/tick', {
+        body: JSON.stringify({
+          autoplayQueue: autoTickStateRef.current.autoplayQueue,
+          clientTimeIso: new Date().toISOString(),
+          feedback: input.feedback,
+          sessionId: input.sessionId,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      const body = await readJsonResponse<RadioTickOutput | ApiError>(
+        response,
+        'Radio tick 回傳格式錯誤。',
+      );
+
+      if (!response.ok || isApiError(body)) {
+        throw new Error(getApiErrorMessage(body, 'Radio tick 失敗。'));
+      }
+
+      return body;
+    },
+    [],
+  );
 
   const autoTickIfQueueIsLow = useCallback(async () => {
     const state = autoTickStateRef.current;
@@ -351,9 +351,7 @@ export default function RadioConsole() {
       setPrompt(nextPrompt);
       setMode('auto');
       setErrorMessage(
-        detail.autoStart
-          ? null
-          : '已套用音樂助手建議。確認 Spotify 裝置後按 Start 建立播放規劃。',
+        detail.autoStart ? null : '已套用音樂助手建議。確認 Spotify 裝置後按 Start 建立播放規劃。',
       );
 
       if (detail.autoStart) {
@@ -376,7 +374,9 @@ export default function RadioConsole() {
     setIsTicking(true);
 
     try {
-      applyTickResult(await requestNextSegment({ feedback: pendingFeedback, sessionId: session.id }));
+      applyTickResult(
+        await requestNextSegment({ feedback: pendingFeedback, sessionId: session.id }),
+      );
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Radio tick 失敗。');
     } finally {
