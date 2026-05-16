@@ -21,7 +21,7 @@ type Props = {
 };
 
 export default function CommentaryModal({ onClose, track }: Props) {
-  const { segment } = useRadio();
+  const { segment, ttsVoice } = useRadio();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
@@ -125,6 +125,7 @@ export default function CommentaryModal({ onClose, track }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: `${commentary.commentary}\n聆聽重點：${commentary.listeningPoints.join('；')}`,
+          voice: ttsVoice,
         }),
       });
       if (!r.ok) throw new Error('TTS 產生失敗');

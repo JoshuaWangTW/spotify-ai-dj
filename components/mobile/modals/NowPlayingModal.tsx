@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 
+import { OPENAI_TTS_VOICE_OPTIONS } from '../../../lib/ai-dj/tts-schema';
 import type { SpotifyPlaybackController } from '../../player/useSpotifyWebPlayback';
 import { useRadio } from '../RadioContext';
 import {
@@ -41,7 +42,7 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
     status,
     track,
   } = playback;
-  const { errorMessage, segment, ttsEnabled, setTtsEnabled } = useRadio();
+  const { errorMessage, segment, ttsEnabled, setTtsEnabled, ttsVoice, setTtsVoice } = useRadio();
   const [liked, setLiked] = useState(false);
 
   const cover = track?.albumImageUrl ?? segment?.tracks[0]?.albumImageUrl ?? null;
@@ -199,26 +200,44 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
       {/* DJ voice toggle — wired to the global ttsEnabled so the user
           can mute the auto-narration any time. */}
       <div className="px-6 pt-1 pb-2">
-        <div className="glass-card flex items-center justify-between rounded-2xl px-4 py-2.5">
-          <div>
-            <div className="text-[13px] font-medium text-slate-800">DJ 語音導聆</div>
-            <div className="text-[11px] text-slate-500">每段切換時自動朗讀 DJ 介紹</div>
+        <div className="glass-card rounded-2xl px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[13px] font-medium text-slate-800">DJ 語音導聆</div>
+              <div className="text-[11px] text-slate-500">每段切換時自動朗讀 DJ 介紹</div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={ttsEnabled}
+              onClick={() => setTtsEnabled(!ttsEnabled)}
+              className="relative h-[26px] w-11 rounded-full transition-colors"
+              style={{
+                background: ttsEnabled ? 'linear-gradient(135deg, #7dd3fc, #0284c7)' : '#cbd5e1',
+              }}
+            >
+              <span
+                className="absolute top-[3px] h-5 w-5 rounded-full bg-white transition-[left]"
+                style={{ left: ttsEnabled ? 21 : 3, boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
+              />
+            </button>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={ttsEnabled}
-            onClick={() => setTtsEnabled(!ttsEnabled)}
-            className="relative h-[26px] w-11 rounded-full transition-colors"
-            style={{
-              background: ttsEnabled ? 'linear-gradient(135deg, #7dd3fc, #0284c7)' : '#cbd5e1',
-            }}
-          >
-            <span
-              className="absolute top-[3px] h-5 w-5 rounded-full bg-white transition-[left]"
-              style={{ left: ttsEnabled ? 21 : 3, boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
-            />
-          </button>
+          <div className="mt-3 grid grid-cols-4 gap-1 rounded-2xl bg-slate-200/45 p-1">
+            {OPENAI_TTS_VOICE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTtsVoice(option.value)}
+                disabled={!ttsEnabled}
+                className={`rounded-[11px] px-1 py-2 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
+                  ttsVoice === option.value ? 'bg-white text-sky-900 shadow-sm' : 'text-slate-500'
+                }`}
+                title={option.description}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

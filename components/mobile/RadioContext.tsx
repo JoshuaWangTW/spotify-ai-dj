@@ -16,6 +16,11 @@ import {
 } from 'react';
 
 import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
+import {
+  DEFAULT_OPENAI_TTS_VOICE,
+  openAiTtsVoiceSchema,
+  type OpenAiTtsVoice,
+} from '../../lib/ai-dj/tts-schema';
 import type {
   AiDjMode,
   RadioSegmentResponse,
@@ -58,6 +63,8 @@ export type RadioContextValue = {
    *  successful start/tick. Persisted in localStorage. */
   ttsEnabled: boolean;
   setTtsEnabled: (v: boolean) => void;
+  ttsVoice: OpenAiTtsVoice;
+  setTtsVoice: (voice: OpenAiTtsVoice) => void;
   /** Register the current Web Playback SDK device id so /api/radio/*
    *  can start playback on the browser player directly. */
   setActiveDeviceId: (id: string | null) => void;
@@ -77,6 +84,7 @@ export type RadioContextValue = {
 };
 
 const TTS_ENABLED_STORAGE_KEY = 'spotify-ai-dj:tts-enabled';
+const TTS_VOICE_STORAGE_KEY = 'spotify-ai-dj:tts-voice';
 
 function readStoredTtsEnabled(): boolean {
   if (typeof window === 'undefined') return true;
@@ -92,6 +100,28 @@ function persistTtsEnabled(v: boolean) {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(TTS_ENABLED_STORAGE_KEY, v ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
+function readStoredTtsVoice(): OpenAiTtsVoice {
+  if (typeof window === 'undefined') return DEFAULT_OPENAI_TTS_VOICE;
+  try {
+    const parsed = openAiTtsVoiceSchema.safeParse(
+      window.localStorage.getItem(TTS_VOICE_STORAGE_KEY),
+    );
+
+    return parsed.success ? parsed.data : DEFAULT_OPENAI_TTS_VOICE;
+  } catch {
+    return DEFAULT_OPENAI_TTS_VOICE;
+  }
+}
+
+function persistTtsVoice(voice: OpenAiTtsVoice) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(TTS_VOICE_STORAGE_KEY, voice);
   } catch {
     /* ignore */
   }
@@ -118,6 +148,7 @@ export function RadioProvider({ children }: ProviderProps) {
   const [errorMessage, setError] = useState<string | null>(null);
   const [draftPrompt, setDraftPrompt] = useState('');
   const [ttsEnabled, setTtsEnabledState] = useState<boolean>(true);
+  const [ttsVoice, setTtsVoiceState] = useState<OpenAiTtsVoice>(DEFAULT_OPENAI_TTS_VOICE);
 
   // Latest session id without re-creating callbacks
   const sessionIdRef = useRef<string | null>(null);
@@ -148,14 +179,18 @@ export function RadioProvider({ children }: ProviderProps) {
 
   // TTS state — keep a ref so the callback always reads the latest value
   const ttsEnabledRef = useRef<boolean>(true);
+  const ttsVoiceRef = useRef<OpenAiTtsVoice>(DEFAULT_OPENAI_TTS_VOICE);
   const djIntroAudioRef = useRef<HTMLAudioElement | null>(null);
   const djIntroAudioUrlRef = useRef<string | null>(null);
 
   // Hydrate the toggle from localStorage on mount (avoid SSR mismatch).
   useEffect(() => {
     const stored = readStoredTtsEnabled();
+    const storedVoice = readStoredTtsVoice();
     setTtsEnabledState(stored);
+    setTtsVoiceState(storedVoice);
     ttsEnabledRef.current = stored;
+    ttsVoiceRef.current = storedVoice;
   }, []);
 
   const setTtsEnabled = useCallback((v: boolean) => {
@@ -170,6 +205,12 @@ export function RadioProvider({ children }: ProviderProps) {
         djIntroAudioUrlRef.current = null;
       }
     }
+  }, []);
+
+  const setTtsVoice = useCallback((voice: OpenAiTtsVoice) => {
+    setTtsVoiceState(voice);
+    ttsVoiceRef.current = voice;
+    persistTtsVoice(voice);
   }, []);
 
   useEffect(
@@ -202,7 +243,7 @@ export function RadioProvider({ children }: ProviderProps) {
       const response = await fetch('/api/ai-dj/commentary/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice: ttsVoiceRef.current }),
       });
       if (!response.ok) return;
 
@@ -393,6 +434,8 @@ export function RadioProvider({ children }: ProviderProps) {
       setDraftPrompt,
       ttsEnabled,
       setTtsEnabled,
+      ttsVoice,
+      setTtsVoice,
       setActiveDeviceId,
       setPlayerActivator,
       startSession,
@@ -410,6 +453,8 @@ export function RadioProvider({ children }: ProviderProps) {
       draftPrompt,
       ttsEnabled,
       setTtsEnabled,
+      ttsVoice,
+      setTtsVoice,
       setActiveDeviceId,
       setPlayerActivator,
       startSession,

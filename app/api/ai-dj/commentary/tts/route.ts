@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { rateLimitRequest, validateSameOriginRequest } from '../../../../../lib/api/security';
+import {
+  DEFAULT_OPENAI_TTS_VOICE,
+  openAiTtsVoiceSchema,
+} from '../../../../../lib/ai-dj/tts-schema';
 import { getSpotifySession } from '../../../../../lib/auth/session';
 import { EnvValidationError, getServerEnv } from '../../../../../lib/config/env';
 
@@ -13,6 +17,7 @@ const OPENAI_TTS_TIMEOUT_MS = 20_000;
 const commentaryTtsInputSchema = z
   .object({
     text: z.string().trim().min(1).max(1200),
+    voice: openAiTtsVoiceSchema.default(DEFAULT_OPENAI_TTS_VOICE),
   })
   .strict();
 
@@ -92,7 +97,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini-tts',
-        voice: 'nova',
+        voice: input.data.voice,
         response_format: 'mp3',
         input: input.data.text,
       }),
