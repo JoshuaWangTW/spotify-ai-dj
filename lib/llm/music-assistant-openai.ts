@@ -159,6 +159,8 @@ function buildAssistantSystemPrompt(): string {
     '不要把 Spotify content 用於模型訓練或 fine-tuning。',
     '記憶只能來自使用者明確說出的偏好、Spotify 資料中高度可信的模式，或本次對話的明確結論。',
     '如果資訊不明確，少量追問，不要硬塞記憶。',
+    '除非前端明確觸發建立 Radio Session，否則不要說「已安排」、「已加入 queue」、「正在播放」；你只能說「我建議用這個 radio prompt」。',
+    '如果使用者要求安排歌單，請在 suggestedRadioPrompt 放入可執行的 radio prompt，reply 說明可以用此 prompt 建立 session。',
     'reply 使用繁體中文，語氣自然、簡潔、像懂音樂的助理。',
     '輸出必須符合指定 JSON schema。',
   ].join('\n');

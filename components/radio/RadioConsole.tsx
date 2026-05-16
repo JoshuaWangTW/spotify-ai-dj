@@ -47,6 +47,12 @@ const modeOptions: Array<{ label: string; value: AiDjMode }> = [
 
 const AUTO_TICK_INTERVAL_MS = 30_000;
 const AUTO_TICK_QUEUE_THRESHOLD = 1;
+const ASSISTANT_RADIO_PROMPT_EVENT = 'music-assistant:radio-prompt';
+
+type AssistantRadioPromptEventDetail = {
+  autoStart?: boolean;
+  prompt: string;
+};
 
 function isApiError(body: unknown): body is ApiError {
   return typeof body === 'object' && body !== null && 'error' in body;
@@ -203,43 +209,86 @@ export default function RadioConsole() {
     return () => window.clearInterval(interval);
   }, [autoTickIfQueueIsLow, autoplayQueue, session?.status]);
 
-  async function startSession() {
-    setErrorMessage(null);
-    setIsStarting(true);
-    setPendingFeedback([]);
-    setFeedbackStatusByKey({});
+  const startSession = useCallback(
+    async (promptOverride?: string, modeOverride?: AiDjMode) => {
+      const promptToUse = (promptOverride ?? prompt).trim();
 
-    try {
-      const response = await fetch('/api/radio/start', {
-        body: JSON.stringify({
-          autoplayQueue,
-          clientTimeIso: new Date().toISOString(),
-          mode,
-          prompt,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }),
-        headers: { 'Content-Type': 'application/json' },
-        method: 'POST',
-      });
-      const body = await readJsonResponse<RadioStartOutput | ApiError>(
-        response,
-        'Radio start 回傳格式錯誤。',
-      );
-
-      if (!response.ok || isApiError(body)) {
-        throw new Error(getApiErrorMessage(body, 'Radio session 建立失敗。'));
+      if (!promptToUse) {
+        return;
       }
 
-      setSession(body.session);
-      setSegment(body.segment);
-      setTracks(body.segment.tracks);
-      setQueueStatusByUri(buildQueueStatus(body.segment));
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Radio session 建立失敗。');
-    } finally {
-      setIsStarting(false);
+      setErrorMessage(null);
+      setIsStarting(true);
+      setPendingFeedback([]);
+      setFeedbackStatusByKey({});
+
+      try {
+        const response = await fetch('/api/radio/start', {
+          body: JSON.stringify({
+            autoplayQueue,
+            clientTimeIso: new Date().toISOString(),
+            mode: modeOverride ?? mode,
+            prompt: promptToUse,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }),
+          headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+        });
+        const body = await readJsonResponse<RadioStartOutput | ApiError>(
+          response,
+          'Radio start 回傳格式錯誤。',
+        );
+
+        if (!response.ok || isApiError(body)) {
+          throw new Error(getApiErrorMessage(body, 'Radio session 建立失敗。'));
+        }
+
+        setSession(body.session);
+        setSegment(body.segment);
+        setTracks(body.segment.tracks);
+        setQueueStatusByUri(buildQueueStatus(body.segment));
+        setPrompt(promptToUse);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'Radio session 建立失敗。');
+      } finally {
+        setIsStarting(false);
+      }
+    },
+    [autoplayQueue, mode, prompt],
+  );
+
+  useEffect(() => {
+    function handleAssistantRadioPrompt(event: Event) {
+      const detail = (event as CustomEvent<AssistantRadioPromptEventDetail>).detail;
+      const nextPrompt = detail?.prompt?.trim();
+
+      if (!nextPrompt) {
+        return;
+      }
+
+      if (session?.status === 'active') {
+        setErrorMessage('目前已有 Radio Session。請先 Stop，再套用助手建議。');
+        return;
+      }
+
+      setPrompt(nextPrompt);
+      setMode('auto');
+      setErrorMessage(
+        detail.autoStart
+          ? null
+          : '已套用音樂助手建議。確認 Spotify 裝置後按 Start 建立播放規劃。',
+      );
+
+      if (detail.autoStart) {
+        void startSession(nextPrompt, 'auto');
+      }
     }
-  }
+
+    window.addEventListener(ASSISTANT_RADIO_PROMPT_EVENT, handleAssistantRadioPrompt);
+
+    return () =>
+      window.removeEventListener(ASSISTANT_RADIO_PROMPT_EVENT, handleAssistantRadioPrompt);
+  }, [session?.status, startSession]);
 
   async function tickSession() {
     if (!session) {

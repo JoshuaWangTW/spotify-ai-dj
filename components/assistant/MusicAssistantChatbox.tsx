@@ -16,6 +16,8 @@ type ChatMessage = {
   role: 'assistant' | 'user';
 };
 
+const ASSISTANT_RADIO_PROMPT_EVENT = 'music-assistant:radio-prompt';
+
 function isApiError(body: unknown): body is ApiError {
   return typeof body === 'object' && body !== null && 'error' in body;
 }
@@ -34,11 +36,23 @@ async function readJsonResponse<T>(response: Response, fallbackMessage: string):
   }
 }
 
+function sendRadioPromptToConsole(prompt: string, autoStart: boolean): void {
+  window.dispatchEvent(
+    new CustomEvent(ASSISTANT_RADIO_PROMPT_EVENT, {
+      detail: {
+        autoStart,
+        prompt,
+      },
+    }),
+  );
+}
+
 export default function MusicAssistantChatbox() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [input, setInput] = useState('我沒有很多歷史歌單，想從對話開始建立我的音樂偏好。');
   const [isSending, setIsSending] = useState(false);
+  const [radioPromptApplied, setRadioPromptApplied] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       content:
@@ -80,7 +94,13 @@ export default function MusicAssistantChatbox() {
 
       setConversationId(body.conversationId);
       setLastResult(body);
+      setRadioPromptApplied(false);
       setMessages((current) => [...current, { content: body.reply, role: 'assistant' }]);
+
+      if (body.suggestedRadioPrompt) {
+        sendRadioPromptToConsole(body.suggestedRadioPrompt, false);
+        setRadioPromptApplied(true);
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '音樂助手暫時無法回覆。');
     } finally {
@@ -186,6 +206,22 @@ export default function MusicAssistantChatbox() {
               <p className="mt-2 text-sm leading-6 text-slate-700">
                 {lastResult.suggestedRadioPrompt}
               </p>
+              <button
+                className="mt-3 w-full rounded-md border border-violet-700 bg-violet-700 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
+                onClick={() =>
+                  lastResult.suggestedRadioPrompt
+                    ? sendRadioPromptToConsole(lastResult.suggestedRadioPrompt, true)
+                    : undefined
+                }
+                type="button"
+              >
+                建立 Radio Session
+              </button>
+              {radioPromptApplied ? (
+                <p className="mt-2 text-xs leading-5 text-violet-700">
+                  已套用到 Joshua Radio。你也可以直接按上方按鈕建立 session。
+                </p>
+              ) : null}
             </div>
           ) : null}
         </aside>
