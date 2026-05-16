@@ -1,29 +1,11 @@
+import 'server-only';
+
 import { NextRequest, NextResponse } from 'next/server';
 
-type RateLimitBucket = {
-  count: number;
-  resetAt: number;
-};
-
-type GlobalWithRateLimit = typeof globalThis & {
-  __spotifyAiDjRateLimits?: Map<string, RateLimitBucket>;
-};
-
-const RATE_LIMIT_CLEANUP_INTERVAL_MS = 60_000;
-let lastCleanupAt = 0;
+import { prisma } from '../db/prisma';
 
 function jsonError(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
-}
-
-function getRateLimitStore(): Map<string, RateLimitBucket> {
-  const globalStore = globalThis as GlobalWithRateLimit;
-
-  if (!globalStore.__spotifyAiDjRateLimits) {
-    globalStore.__spotifyAiDjRateLimits = new Map();
-  }
-
-  return globalStore.__spotifyAiDjRateLimits;
 }
 
 function getAllowedOrigins(request: NextRequest): Set<string> {
@@ -52,20 +34,6 @@ function getAllowedOrigins(request: NextRequest): Set<string> {
   return origins;
 }
 
-function cleanupExpiredBuckets(store: Map<string, RateLimitBucket>, now: number): void {
-  if (now - lastCleanupAt < RATE_LIMIT_CLEANUP_INTERVAL_MS) {
-    return;
-  }
-
-  lastCleanupAt = now;
-
-  for (const [key, bucket] of store.entries()) {
-    if (bucket.resetAt <= now) {
-      store.delete(key);
-    }
-  }
-}
-
 export function validateSameOriginRequest(request: NextRequest): NextResponse | null {
   const origin = request.headers.get('origin');
 
@@ -84,24 +52,68 @@ export function rateLimitRequest(input: {
   key: string;
   limit: number;
   windowMs: number;
-}): NextResponse | null {
-  const now = Date.now();
-  const store = getRateLimitStore();
-  cleanupExpiredBuckets(store, now);
+}): Promise<NextResponse | null> {
+  return rateLimitRequestWithDatabase(input);
+}
 
-  const existing = store.get(input.key);
+async function rateLimitRequestWithDatabase(input: {
+  key: string;
+  limit: number;
+  windowMs: number;
+}): Promise<NextResponse | null> {
+  const now = new Date();
+  const nextResetAt = new Date(now.getTime() + input.windowMs);
+  const existing = await prisma.rateLimitBucket.findUnique({
+    where: { key: input.key },
+  });
 
-  if (!existing || existing.resetAt <= now) {
-    store.set(input.key, {
-      count: 1,
-      resetAt: now + input.windowMs,
+  if (!existing) {
+    try {
+      await prisma.rateLimitBucket.create({
+        data: {
+          count: 1,
+          key: input.key,
+          resetAt: nextResetAt,
+        },
+      });
+      return null;
+    } catch {
+      const updated = await prisma.rateLimitBucket.update({
+        data: {
+          count: {
+            increment: 1,
+          },
+        },
+        where: { key: input.key },
+      });
+
+      return updated.count > input.limit
+        ? jsonError('RATE_LIMITED', 'Too many requests. Please try again later.', 429)
+        : null;
+    }
+  }
+
+  if (existing.resetAt <= now) {
+    await prisma.rateLimitBucket.update({
+      data: {
+        count: 1,
+        resetAt: nextResetAt,
+      },
+      where: { key: input.key },
     });
     return null;
   }
 
-  existing.count += 1;
+  const updated = await prisma.rateLimitBucket.update({
+    data: {
+      count: {
+        increment: 1,
+      },
+    },
+    where: { key: input.key },
+  });
 
-  if (existing.count > input.limit) {
+  if (updated.count > input.limit) {
     return jsonError('RATE_LIMITED', 'Too many requests. Please try again later.', 429);
   }
 
