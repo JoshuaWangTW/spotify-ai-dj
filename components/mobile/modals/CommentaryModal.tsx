@@ -8,7 +8,7 @@ import { readStoredLlmSelection } from '../../llm/useLlmModelPreference';
 import type { TrackState } from '../../player/useSpotifyWebPlayback';
 import { useRadio } from '../RadioContext';
 import { findMode } from '../modes';
-import { IconChevronLeft, IconMore, IconPause, IconPlay, IconSpark, IconThumbsUp } from '../icons';
+import { IconChevronLeft, IconPause, IconPlay, IconSpark, IconThumbsUp } from '../icons';
 
 type ApiError = { error?: { message?: string } };
 function isApiError(b: unknown): b is ApiError {
@@ -38,6 +38,13 @@ export default function CommentaryModal({ onClose, track }: Props) {
   const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [speaking, setSpeaking] = useState(false);
+  const [likeStatus, setLikeStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+
+  const currentTrackUri = track?.trackUri ?? fallback?.spotifyUri ?? null;
+  // Reset like status when the track changes so the user can like the next one.
+  useEffect(() => {
+    setLikeStatus('idle');
+  }, [currentTrackUri]);
 
   const fetchCommentary = useCallback(
     async (d: 'short' | 'deep') => {
@@ -149,6 +156,40 @@ export default function CommentaryModal({ onClose, track }: Props) {
     }
   }
 
+  async function handleLike() {
+    if (likeStatus === 'sending' || likeStatus === 'sent') return;
+    if (!currentTrackUri) {
+      setError('沒有可回饋的曲目 — 請先開始播放。');
+      return;
+    }
+    const spotifyTrackId = currentTrackUri.split(':').pop();
+    if (!spotifyTrackId) {
+      setError('曲目 ID 格式錯誤。');
+      return;
+    }
+    setLikeStatus('sending');
+    try {
+      const r = await fetch('/api/feedback/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          artistName: artistName || undefined,
+          feedbackType: 'like',
+          spotifyTrackId,
+          trackName: trackName || undefined,
+        }),
+      });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => null)) as ApiError | null;
+        throw new Error(body?.error?.message ?? '送出回饋失敗。');
+      }
+      setLikeStatus('sent');
+    } catch (e) {
+      setLikeStatus('failed');
+      setError(e instanceof Error ? e.message : '送出回饋失敗。');
+    }
+  }
+
   const cover = track?.albumImageUrl ?? fallback?.albumImageUrl ?? null;
 
   return (
@@ -180,12 +221,7 @@ export default function CommentaryModal({ onClose, track }: Props) {
           <IconChevronLeft size={20} />
         </button>
         <span className="text-sm font-semibold text-slate-800">AI Commentary</span>
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-slate-600"
-        >
-          <IconMore size={20} />
-        </button>
+        <span style={{ width: 36 }} />
       </div>
 
       {/* Depth toggle */}
@@ -289,10 +325,21 @@ export default function CommentaryModal({ onClose, track }: Props) {
         </button>
         <button
           type="button"
-          className="glass-card flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[13.5px] font-semibold text-slate-700"
+          onClick={() => void handleLike()}
+          disabled={
+            !currentTrackUri || likeStatus === 'sending' || likeStatus === 'sent'
+          }
+          className={`glass-card flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[13.5px] font-semibold disabled:opacity-60 ${
+            likeStatus === 'sent' ? 'text-emerald-700' : 'text-slate-700'
+          }`}
+          aria-label="Like this track"
         >
           <IconThumbsUp size={16} />
-          Like
+          {likeStatus === 'sent'
+            ? '已送出'
+            : likeStatus === 'sending'
+              ? '送出中…'
+              : 'Like'}
         </button>
       </div>
 

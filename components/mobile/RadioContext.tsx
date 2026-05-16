@@ -8,6 +8,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -53,6 +54,13 @@ export type RadioContextValue = {
    *  Start sheet when set. */
   draftPrompt: string;
   setDraftPrompt: (p: string) => void;
+  /** Whether the DJ intro is read aloud automatically after each
+   *  successful start/tick. Persisted in localStorage. */
+  ttsEnabled: boolean;
+  setTtsEnabled: (v: boolean) => void;
+  /** Register the current Web Playback SDK device id so /api/radio/*
+   *  can start playback on the browser player directly. */
+  setActiveDeviceId: (id: string | null) => void;
   // Actions
   startSession: (args: {
     prompt: string;
@@ -63,6 +71,27 @@ export type RadioContextValue = {
   stopSession: () => Promise<RadioStopOutput | null>;
   clearError: () => void;
 };
+
+const TTS_ENABLED_STORAGE_KEY = 'spotify-ai-dj:tts-enabled';
+
+function readStoredTtsEnabled(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const v = window.localStorage.getItem(TTS_ENABLED_STORAGE_KEY);
+    return v === null ? true : v === '1';
+  } catch {
+    return true;
+  }
+}
+
+function persistTtsEnabled(v: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(TTS_ENABLED_STORAGE_KEY, v ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
 
 const RadioContext = createContext<RadioContextValue | null>(null);
 
@@ -84,10 +113,100 @@ export function RadioProvider({ children }: ProviderProps) {
   const [isStopping, setStopping] = useState(false);
   const [errorMessage, setError] = useState<string | null>(null);
   const [draftPrompt, setDraftPrompt] = useState('');
+  const [ttsEnabled, setTtsEnabledState] = useState<boolean>(true);
 
   // Latest session id without re-creating callbacks
   const sessionIdRef = useRef<string | null>(null);
   sessionIdRef.current = session?.id ?? null;
+
+  // Latest Web Playback SDK device id (set by MobileShell when SDK ready)
+  const deviceIdRef = useRef<string | null>(null);
+  const setActiveDeviceId = useCallback((id: string | null) => {
+    deviceIdRef.current = id;
+  }, []);
+
+  // TTS state — keep a ref so the callback always reads the latest value
+  const ttsEnabledRef = useRef<boolean>(true);
+  const djIntroAudioRef = useRef<HTMLAudioElement | null>(null);
+  const djIntroAudioUrlRef = useRef<string | null>(null);
+
+  // Hydrate the toggle from localStorage on mount (avoid SSR mismatch).
+  useEffect(() => {
+    const stored = readStoredTtsEnabled();
+    setTtsEnabledState(stored);
+    ttsEnabledRef.current = stored;
+  }, []);
+
+  const setTtsEnabled = useCallback((v: boolean) => {
+    setTtsEnabledState(v);
+    ttsEnabledRef.current = v;
+    persistTtsEnabled(v);
+    if (!v && djIntroAudioRef.current) {
+      djIntroAudioRef.current.pause();
+      djIntroAudioRef.current = null;
+      if (djIntroAudioUrlRef.current) {
+        URL.revokeObjectURL(djIntroAudioUrlRef.current);
+        djIntroAudioUrlRef.current = null;
+      }
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (djIntroAudioRef.current) {
+        djIntroAudioRef.current.pause();
+        djIntroAudioRef.current = null;
+      }
+      if (djIntroAudioUrlRef.current) {
+        URL.revokeObjectURL(djIntroAudioUrlRef.current);
+        djIntroAudioUrlRef.current = null;
+      }
+    },
+    [],
+  );
+
+  const playDjIntroTts = useCallback(async (text: string) => {
+    if (!ttsEnabledRef.current || !text || typeof window === 'undefined') return;
+
+    if (djIntroAudioRef.current) {
+      djIntroAudioRef.current.pause();
+      djIntroAudioRef.current = null;
+    }
+    if (djIntroAudioUrlRef.current) {
+      URL.revokeObjectURL(djIntroAudioUrlRef.current);
+      djIntroAudioUrlRef.current = null;
+    }
+
+    try {
+      const response = await fetch('/api/ai-dj/commentary/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!response.ok) return;
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      djIntroAudioRef.current = audio;
+      djIntroAudioUrlRef.current = url;
+
+      const cleanup = () => {
+        if (djIntroAudioRef.current === audio) {
+          djIntroAudioRef.current = null;
+        }
+        if (djIntroAudioUrlRef.current === url) {
+          URL.revokeObjectURL(url);
+          djIntroAudioUrlRef.current = null;
+        }
+      };
+      audio.onended = cleanup;
+      audio.onerror = cleanup;
+      await audio.play();
+    } catch {
+      /* TTS is best-effort */
+    }
+  }, []);
 
   const startSession = useCallback(
     async ({
@@ -111,6 +230,7 @@ export function RadioProvider({ children }: ProviderProps) {
           body: JSON.stringify({
             autoplayQueue,
             clientTimeIso: new Date().toISOString(),
+            deviceId: deviceIdRef.current ?? undefined,
             llmModel: llmSelection.llmModel,
             llmProvider: llmSelection.llmProvider,
             mode,
@@ -122,8 +242,6 @@ export function RadioProvider({ children }: ProviderProps) {
         if (!r.ok || isApiError(body)) {
           throw new Error(apiErrorMessage(body, 'Radio session 建立失敗。'));
         }
-        // If Spotify returned no tracks (e.g. rate-limited), treat as a
-        // failed start so the caller does NOT open NowPlayingModal.
         if (body.segment.tracks.length === 0) {
           setError(body.queueWarning?.message ?? 'Spotify 沒有找到可播放的曲目，請稍後再試。');
           return null;
@@ -131,6 +249,12 @@ export function RadioProvider({ children }: ProviderProps) {
         setSession(body.session);
         setSegment(body.segment);
         setError(body.queueWarning?.message ?? null);
+
+        // Fire-and-forget DJ intro narration.
+        if (body.segment.plan.djIntro) {
+          void playDjIntroTts(body.segment.plan.djIntro);
+        }
+
         return body;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Radio session 建立失敗。');
@@ -139,7 +263,7 @@ export function RadioProvider({ children }: ProviderProps) {
         setStarting(false);
       }
     },
-    [],
+    [playDjIntroTts],
   );
 
   const tickSession = useCallback(async () => {
@@ -155,6 +279,7 @@ export function RadioProvider({ children }: ProviderProps) {
         body: JSON.stringify({
           autoplayQueue: true,
           clientTimeIso: new Date().toISOString(),
+          deviceId: deviceIdRef.current ?? undefined,
           feedback: [],
           llmModel: llmSelection.llmModel,
           llmProvider: llmSelection.llmProvider,
@@ -166,8 +291,6 @@ export function RadioProvider({ children }: ProviderProps) {
       if (!r.ok || isApiError(body)) {
         throw new Error(apiErrorMessage(body, 'Radio tick 失敗。'));
       }
-      // If tick returned no tracks, keep the current segment and warn.
-      // Don't replace segment with an empty one — existing queue keeps playing.
       if (body.segment.tracks.length === 0) {
         setError(body.queueWarning?.message ?? 'Spotify 暫時無法排入下一段曲目，將自動重試。');
         return null;
@@ -175,6 +298,12 @@ export function RadioProvider({ children }: ProviderProps) {
       setSession((cur) => (cur ? { ...cur, mode: body.session.mode } : cur));
       setSegment(body.segment);
       setError(body.queueWarning?.message ?? null);
+
+      // Speak the new segment's DJ intro between mixes.
+      if (body.segment.plan.djIntro) {
+        void playDjIntroTts(body.segment.plan.djIntro);
+      }
+
       return body;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Radio tick 失敗。');
@@ -182,7 +311,7 @@ export function RadioProvider({ children }: ProviderProps) {
     } finally {
       setTicking(false);
     }
-  }, []);
+  }, [playDjIntroTts]);
 
   const stopSession = useCallback(async () => {
     const id = sessionIdRef.current;
@@ -221,6 +350,9 @@ export function RadioProvider({ children }: ProviderProps) {
       errorMessage,
       draftPrompt,
       setDraftPrompt,
+      ttsEnabled,
+      setTtsEnabled,
+      setActiveDeviceId,
       startSession,
       tickSession,
       stopSession,
@@ -234,6 +366,9 @@ export function RadioProvider({ children }: ProviderProps) {
       isStopping,
       errorMessage,
       draftPrompt,
+      ttsEnabled,
+      setTtsEnabled,
+      setActiveDeviceId,
       startSession,
       tickSession,
       stopSession,

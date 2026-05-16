@@ -1,10 +1,10 @@
 // components/mobile/screens/ForYouScreen.tsx
 'use client';
 
-import AlbumArtwork, { type AlbumArtKind } from '../AlbumArtwork';
+import AlbumArtwork from '../AlbumArtwork';
 import { useRadio } from '../RadioContext';
 import { MODES, type DjMode } from '../modes';
-import { IconBell, IconChevronRight, IconMenu, IconPlay } from '../icons';
+import { IconPlay } from '../icons';
 import type { SessionUser } from '../MobileShell';
 
 type Props = {
@@ -20,22 +20,7 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
 
   return (
     <div className="px-0">
-      <div className="flex items-center justify-between px-5 pt-2 pb-1">
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-slate-600"
-        >
-          <IconMenu size={20} />
-        </button>
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-slate-600"
-        >
-          <IconBell size={20} />
-        </button>
-      </div>
-
-      <div className="px-5 pt-2 pb-4">
+      <div className="px-5 pt-6 pb-4">
         <p className="text-sm text-slate-500">Good evening, {greeting}</p>
         <h1 className="mt-1 text-[30px] font-bold tracking-tight text-slate-900">For You</h1>
       </div>
@@ -142,7 +127,7 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
       </div>
 
       {/* Your Modes */}
-      <SectionHeader title="Your Modes" action="See all" />
+      <SectionHeader title="Your Modes" />
       <div className="-mx-1 mb-6 flex gap-3 overflow-x-auto px-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {MODES.map((m) => (
           <button
@@ -190,58 +175,25 @@ export default function ForYouScreen({ sessionUser, onPickMode, onOpenNowPlaying
           </div>
         </>
       ) : (
-        <>
-          <SectionHeader title="Recent Sessions" action="History" />
-          <div className="flex flex-col gap-2.5 px-5">
-            {[
-              {
-                title: 'Late Night Jazz',
-                subtitle: '12 tracks · Jazz Intro',
-                when: '2h ago',
-                art: 'sax' as AlbumArtKind,
-              },
-              {
-                title: 'Beethoven Symphonies',
-                subtitle: '8 tracks · Classical',
-                when: 'Yesterday',
-                art: 'violin' as AlbumArtKind,
-              },
-              {
-                title: 'Roasting Session',
-                subtitle: '6 tracks · Coffee',
-                when: '2d ago',
-                art: 'desert' as AlbumArtKind,
-              },
-            ].map((s) => (
-              <div key={s.title} className="glass-card flex items-center gap-3 rounded-2xl p-2.5">
-                <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl">
-                  <AlbumArtwork kind={s.art} size={56} radius={12} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-slate-800">{s.title}</div>
-                  <div className="mt-0.5 text-xs text-slate-500">{s.subtitle}</div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">{s.when}</div>
-                </div>
-                <IconChevronRight size={18} />
-              </div>
-            ))}
+        // No active session — show an empty hint instead of hard-coded
+        // mock "Recent Sessions" data, which was misleading.
+        <div className="px-5 pb-6">
+          <div className="glass-card rounded-2xl px-4 py-4 text-center">
+            <div className="text-[13px] text-slate-600">還沒有播放紀錄</div>
+            <div className="mt-1 text-[11.5px] text-slate-400">
+              送出一個情境需求，DJ 會幫你排歌單並開始播放
+            </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
 
-function SectionHeader({ title, action }: { title: string; action?: string }) {
+function SectionHeader({ title }: { title: string }) {
   return (
     <div className="mb-3 flex items-center justify-between px-5">
       <h3 className="m-0 text-[17px] font-semibold text-slate-700">{title}</h3>
-      {action && (
-        <button type="button" className="flex items-center gap-0.5 text-[13px] text-slate-500">
-          <span>{action}</span>
-          <IconChevronRight size={16} />
-        </button>
-      )}
     </div>
   );
 }

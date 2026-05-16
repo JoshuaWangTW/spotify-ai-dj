@@ -25,6 +25,7 @@ import {
   queueSpotifyTracks,
   searchSpotifyTracks,
   SpotifyWebApiError,
+  startSpotifyPlayback,
 } from '../../../../lib/spotify';
 import type { SpotifyTrackCandidate } from '../../../../lib/spotify-types';
 
@@ -161,8 +162,29 @@ export async function POST(request: NextRequest) {
         : [];
 
       if (trackUrisToQueue.length > 0) {
+        // Tick path: by default just append to the existing Spotify queue
+        // so playback isn't interrupted mid-track. If the previous queue
+        // attempt failed with "no active device" though, we transparently
+        // upgrade to startSpotifyPlayback with the browser deviceId so
+        // the user doesn't have to manually press play again.
         try {
-          await queueSpotifyTracks(token.accessToken, trackUrisToQueue);
+          try {
+            await queueSpotifyTracks(token.accessToken, trackUrisToQueue);
+          } catch (queueError) {
+            if (
+              queueError instanceof SpotifyWebApiError &&
+              queueError.code === 'SPOTIFY_NO_ACTIVE_DEVICE' &&
+              input.data.deviceId
+            ) {
+              await startSpotifyPlayback(
+                token.accessToken,
+                trackUrisToQueue,
+                input.data.deviceId,
+              );
+            } else {
+              throw queueError;
+            }
+          }
           queuedTrackUris = trackUrisToQueue;
         } catch (error) {
           if (error instanceof SpotifyWebApiError) {

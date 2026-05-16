@@ -9,13 +9,10 @@ import {
   IconChevronDown,
   IconHeart,
   IconHeartFilled,
-  IconMore,
   IconNext,
   IconPause,
   IconPlay,
   IconPrev,
-  IconRepeat,
-  IconShuffle,
   IconSpark,
   IconSpeaker,
   IconList,
@@ -44,10 +41,8 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
     status,
     track,
   } = playback;
-  const { errorMessage, segment } = useRadio();
+  const { errorMessage, segment, ttsEnabled, setTtsEnabled } = useRadio();
   const [liked, setLiked] = useState(false);
-  const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState(false);
 
   const cover = track?.albumImageUrl ?? segment?.tracks[0]?.albumImageUrl ?? null;
   const title =
@@ -96,12 +91,7 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
           <IconChevronDown size={20} />
         </button>
         <span className="text-sm font-semibold text-slate-800">Now Playing</span>
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-slate-600"
-        >
-          <IconMore size={20} />
-        </button>
+        <span style={{ width: 36 }} />
       </div>
 
       {/* Cover */}
@@ -169,16 +159,10 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
         </div>
       </div>
 
-      {/* Transport */}
-      <div className="flex items-center justify-between px-6 py-4">
-        <button
-          type="button"
-          onClick={() => setShuffle((v) => !v)}
-          className={`flex h-11 w-11 items-center justify-center rounded-full ${shuffle ? 'text-sky-600' : 'text-slate-400'}`}
-          aria-label="Shuffle"
-        >
-          <IconShuffle size={20} />
-        </button>
+      {/* Transport — only the commands the Web Playback SDK actually
+          supports (prev / toggle / next). Shuffle & Repeat were removed
+          because the SDK doesn't expose them and the buttons were dead. */}
+      <div className="flex items-center justify-center gap-10 px-6 py-4">
         <button
           type="button"
           onClick={() => void runPlayerCommand('previous')}
@@ -210,14 +194,32 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
         >
           <IconNext size={28} />
         </button>
-        <button
-          type="button"
-          onClick={() => setRepeat((v) => !v)}
-          className={`flex h-11 w-11 items-center justify-center rounded-full ${repeat ? 'text-sky-600' : 'text-slate-400'}`}
-          aria-label="Repeat"
-        >
-          <IconRepeat size={20} />
-        </button>
+      </div>
+
+      {/* DJ voice toggle — wired to the global ttsEnabled so the user
+          can mute the auto-narration any time. */}
+      <div className="px-6 pt-1 pb-2">
+        <div className="glass-card flex items-center justify-between rounded-2xl px-4 py-2.5">
+          <div>
+            <div className="text-[13px] font-medium text-slate-800">DJ 語音導聆</div>
+            <div className="text-[11px] text-slate-500">每段切換時自動朗讀 DJ 介紹</div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={ttsEnabled}
+            onClick={() => setTtsEnabled(!ttsEnabled)}
+            className="relative h-[26px] w-11 rounded-full transition-colors"
+            style={{
+              background: ttsEnabled ? 'linear-gradient(135deg, #7dd3fc, #0284c7)' : '#cbd5e1',
+            }}
+          >
+            <span
+              className="absolute top-[3px] h-5 w-5 rounded-full bg-white transition-[left]"
+              style={{ left: ttsEnabled ? 21 : 3, boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Device + activate button */}
@@ -277,9 +279,11 @@ export default function NowPlayingModal({ onClose, onOpenCommentary, playback }:
         </button>
         <button
           type="button"
-          className="glass-card flex items-center justify-center gap-2 rounded-2xl py-3 text-[13.5px] font-semibold text-sky-900"
+          onClick={() => void runPlayerCommand('next')}
+          disabled={!playerReady}
+          className="glass-card flex items-center justify-center gap-2 rounded-2xl py-3 text-[13.5px] font-semibold text-sky-900 disabled:opacity-50"
         >
-          <IconList size={16} /> Up Next
+          <IconList size={16} /> 下一首
         </button>
       </div>
 

@@ -56,12 +56,39 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
 
   // Spotify playback (single hook instance at the shell level)
   const playback = useSpotifyWebPlayback();
-  const { segment, session: radioSession, setDraftPrompt, tickSession } = useRadio();
+  const {
+    segment,
+    session: radioSession,
+    setDraftPrompt,
+    setActiveDeviceId,
+    tickSession,
+  } = useRadio();
+  const autoTransferAttemptedRef = useRef(false);
 
   // Reset scroll on tab change
   useEffect(() => {
     scrollRef.current?.scrollTo(0, 0);
   }, [tab]);
+
+  // Tell RadioContext which browser device id to play onto. /api/radio/start
+  // uses this to call PUT /me/player/play with device_id, so submitting a
+  // prompt activates our Web Playback SDK and starts music in one shot —
+  // no separate "啟動瀏覽器播放" tap needed.
+  useEffect(() => {
+    setActiveDeviceId(playback.deviceId ?? null);
+  }, [playback.deviceId, setActiveDeviceId]);
+
+  // First time the SDK reports a device id, transfer playback to it so the
+  // user is unambiguously on the browser player. Use 'play: false' (per
+  // transfer-playback route) so we don't fight other apps; the actual
+  // play call comes from /api/radio/start.
+  useEffect(() => {
+    if (!playback.deviceId) return;
+    if (autoTransferAttemptedRef.current) return;
+    if (playback.status === 'device_active' || playback.status === 'ready') return;
+    autoTransferAttemptedRef.current = true;
+    void playback.activateBrowserDevice();
+  }, [playback.deviceId, playback.status, playback.activateBrowserDevice, playback]);
 
   useEffect(() => {
     if (radioSession?.status !== 'active') {

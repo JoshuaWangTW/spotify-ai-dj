@@ -23,6 +23,7 @@ import {
   queueSpotifyTracks,
   searchSpotifyTracks,
   SpotifyWebApiError,
+  startSpotifyPlayback,
 } from '../../../../lib/spotify';
 import type { SpotifyTrackCandidate } from '../../../../lib/spotify-types';
 
@@ -130,8 +131,24 @@ export async function POST(request: NextRequest) {
         : [];
 
       if (trackUrisToQueue.length > 0) {
+        // Start-of-session: use PUT /me/player/play with the browser
+        // deviceId so Spotify both (a) activates our Web Playback SDK
+        // device and (b) immediately starts playing the queue. This
+        // mirrors the Spotify AI DJ-style "tap -> music starts" UX.
+        //
+        // If no deviceId is provided (e.g. SDK still booting), fall
+        // back to the queue endpoint, which requires an existing
+        // active device and yields a friendly queueWarning otherwise.
         try {
-          await queueSpotifyTracks(token.accessToken, trackUrisToQueue);
+          if (input.data.deviceId) {
+            await startSpotifyPlayback(
+              token.accessToken,
+              trackUrisToQueue,
+              input.data.deviceId,
+            );
+          } else {
+            await queueSpotifyTracks(token.accessToken, trackUrisToQueue);
+          }
           queuedTrackUris = trackUrisToQueue;
         } catch (error) {
           if (error instanceof SpotifyWebApiError) {

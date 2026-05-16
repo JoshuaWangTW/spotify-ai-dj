@@ -13,10 +13,15 @@ export const radioEventTypeSchema = z.enum([
 
 export type AiDjMode = z.infer<typeof aiDjModeSchema>;
 
+// Spotify Web Playback SDK device IDs are 40-char hex strings; allow a
+// generous bound to stay forward-compatible.
+const spotifyDeviceIdSchema = z.string().trim().min(1).max(160);
+
 export const radioStartInputSchema = z
   .object({
     autoplayQueue: z.boolean().default(true),
     clientTimeIso: z.string().datetime().optional(),
+    deviceId: spotifyDeviceIdSchema.optional(),
     llmModel: llmModelSchema.optional(),
     llmProvider: llmProviderSchema.optional(),
     mode: aiDjModeSchema.default('auto'),
@@ -57,6 +62,7 @@ export const radioTickInputSchema = z
   .object({
     autoplayQueue: z.boolean().default(true),
     clientTimeIso: z.string().datetime().optional(),
+    deviceId: spotifyDeviceIdSchema.optional(),
     feedback: z.array(radioTickFeedbackSchema).max(10).default([]),
     llmModel: llmModelSchema.optional(),
     llmProvider: llmProviderSchema.optional(),

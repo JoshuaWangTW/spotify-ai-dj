@@ -484,6 +484,83 @@ export async function queueSpotifyTracks(
   }
 }
 
+/**
+ * Starts playback of the given Spotify URIs on a specific device.
+ * Uses PUT /me/player/play with a device_id query param. Unlike the queue
+ * endpoint, this:
+ *   - activates the target device if it is registered but inactive
+ *   - replaces Spotify's current playback queue with `spotifyUris`
+ *   - immediately starts playing `spotifyUris[0]`
+ *
+ * This is what the Spotify AI DJ-style "submit prompt -> music starts now"
+ * flow needs. Falls back to a SpotifyWebApiError on non-2xx.
+ */
+export async function startSpotifyPlayback(
+  accessToken: string,
+  spotifyUris: string[],
+  deviceId?: string,
+): Promise<void> {
+  if (spotifyUris.length === 0) {
+    return;
+  }
+
+  const abortController = new AbortController();
+  const timeout = setTimeout(() => abortController.abort(), SPOTIFY_REQUEST_TIMEOUT_MS);
+
+  try {
+    const playUrl = new URL(SPOTIFY_PLAYER_URL + '/play');
+    if (deviceId) {
+      playUrl.searchParams.set('device_id', deviceId);
+    }
+
+    const response = await fetch(playUrl, {
+      body: JSON.stringify({ uris: spotifyUris.slice(0, 50) }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'PUT',
+      signal: abortController.signal,
+    });
+
+    if (!response.ok && response.status !== 204) {
+      const status = response.status === 404 ? 409 : 502;
+      const code =
+        response.status === 404
+          ? 'SPOTIFY_NO_ACTIVE_DEVICE'
+          : response.status === 403
+            ? 'SPOTIFY_PLAYBACK_FORBIDDEN'
+            : 'SPOTIFY_PLAYBACK_FAILED';
+      const message =
+        response.status === 403
+          ? 'Spotify playback was forbidden. Premium account required.'
+          : 'Spotify playback request failed.';
+
+      throw new SpotifyWebApiError(code, message, status);
+    }
+  } catch (error) {
+    if (error instanceof SpotifyWebApiError) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new SpotifyWebApiError(
+        'SPOTIFY_PLAYBACK_TIMEOUT',
+        'Spotify playback request timed out.',
+        504,
+      );
+    }
+
+    throw new SpotifyWebApiError(
+      'SPOTIFY_PLAYBACK_FAILED',
+      'Spotify playback request failed.',
+      502,
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function fetchSpotifyPlaybackState(
   accessToken: string,
 ): Promise<SpotifyPlaybackSnapshot | null> {
