@@ -91,7 +91,10 @@ export default function RadioConsole() {
     sessionStatus: null as RadioStartOutput['session']['status'] | null,
   });
   const autoTickInFlightRef = useRef(false);
+  const djIntroAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsEnabledRef = useRef(true);
   const [autoplayQueue, setAutoplayQueue] = useState(true);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [feedbackStatusByKey, setFeedbackStatusByKey] = useState<Record<string, FeedbackStatus>>(
     {},
@@ -110,13 +113,75 @@ export default function RadioConsole() {
   const isBusy = isStarting || isTicking || isStopping;
   const currentMode = segment?.plan.mode ?? session?.mode ?? 'jazz_intro';
 
+  useEffect(() => {
+    ttsEnabledRef.current = ttsEnabled;
+  }, [ttsEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (djIntroAudioRef.current) {
+        djIntroAudioRef.current.pause();
+        djIntroAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  const playDjIntroTts = useCallback(async (text: string) => {
+    if (!ttsEnabledRef.current) {
+      return;
+    }
+
+    if (djIntroAudioRef.current) {
+      djIntroAudioRef.current.pause();
+      djIntroAudioRef.current = null;
+    }
+
+    try {
+      const response = await fetch('/api/ai-dj/commentary/tts', {
+        body: JSON.stringify({ text }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      djIntroAudioRef.current = audio;
+
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        if (djIntroAudioRef.current === audio) {
+          djIntroAudioRef.current = null;
+        }
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        if (djIntroAudioRef.current === audio) {
+          djIntroAudioRef.current = null;
+        }
+      };
+
+      await audio.play();
+    } catch {
+      // TTS 失敗不中斷主流程
+    }
+  }, []);
+
   const applyTickResult = useCallback((body: RadioTickOutput) => {
     setSession((current) => (current ? { ...current, mode: body.session.mode } : current));
     setSegment(body.segment);
     setTracks(body.segment.tracks);
     setQueueStatusByUri(buildQueueStatus(body.segment));
     setPendingFeedback([]);
-  }, []);
+
+    if (body.segment.plan.djIntro) {
+      void playDjIntroTts(body.segment.plan.djIntro);
+    }
+  }, [playDjIntroTts]);
 
   const requestNextSegment = useCallback(async (input: {
     feedback: PendingFeedback[];
@@ -248,13 +313,17 @@ export default function RadioConsole() {
         setTracks(body.segment.tracks);
         setQueueStatusByUri(buildQueueStatus(body.segment));
         setPrompt(promptToUse);
+
+        if (body.segment.plan.djIntro) {
+          void playDjIntroTts(body.segment.plan.djIntro);
+        }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : 'Radio session 建立失敗。');
       } finally {
         setIsStarting(false);
       }
     },
-    [autoplayQueue, mode, prompt],
+    [autoplayQueue, mode, prompt, playDjIntroTts],
   );
 
   useEffect(() => {
@@ -439,6 +508,31 @@ export default function RadioConsole() {
             <span
               className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
                 autoplayQueue ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between rounded-md border border-slate-200/70 bg-white/40 px-3 py-2">
+          <span className="text-sm text-slate-600">DJ 語音導聆</span>
+          <button
+            aria-checked={ttsEnabled}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${
+              ttsEnabled ? 'bg-sky-500' : 'bg-slate-200'
+            }`}
+            onClick={() => {
+              if (ttsEnabled && djIntroAudioRef.current) {
+                djIntroAudioRef.current.pause();
+                djIntroAudioRef.current = null;
+              }
+              setTtsEnabled((current) => !current);
+            }}
+            role="switch"
+            type="button"
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                ttsEnabled ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>
