@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { readStoredLlmModel } from '../llm/useLlmModelPreference';
 import type {
   AiDjMode,
   RadioSegmentResponse,
@@ -109,6 +110,7 @@ export function RadioProvider({ children }: ProviderProps) {
           body: JSON.stringify({
             autoplayQueue,
             clientTimeIso: new Date().toISOString(),
+            llmModel: readStoredLlmModel(),
             mode,
             prompt: trimmed,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -117,6 +119,15 @@ export function RadioProvider({ children }: ProviderProps) {
         const body = await readJson<RadioStartOutput | ApiError>(r, 'Radio start 回傳格式錯誤。');
         if (!r.ok || isApiError(body)) {
           throw new Error(apiErrorMessage(body, 'Radio session 建立失敗。'));
+        }
+        // If Spotify returned no tracks (e.g. rate-limited), treat as a
+        // failed start so the caller does NOT open NowPlayingModal.
+        if (body.segment.tracks.length === 0) {
+          setError(
+            body.queueWarning?.message ??
+              'Spotify 沒有找到可播放的曲目，請稍後再試。',
+          );
+          return null;
         }
         setSession(body.session);
         setSegment(body.segment);
@@ -145,6 +156,7 @@ export function RadioProvider({ children }: ProviderProps) {
           autoplayQueue: true,
           clientTimeIso: new Date().toISOString(),
           feedback: [],
+          llmModel: readStoredLlmModel(),
           sessionId: id,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
@@ -152,6 +164,15 @@ export function RadioProvider({ children }: ProviderProps) {
       const body = await readJson<RadioTickOutput | ApiError>(r, 'Radio tick 回傳格式錯誤。');
       if (!r.ok || isApiError(body)) {
         throw new Error(apiErrorMessage(body, 'Radio tick 失敗。'));
+      }
+      // If tick returned no tracks, keep the current segment and warn.
+      // Don't replace segment with an empty one — existing queue keeps playing.
+      if (body.segment.tracks.length === 0) {
+        setError(
+          body.queueWarning?.message ??
+            'Spotify 暫時無法排入下一段曲目，將自動重試。',
+        );
+        return null;
       }
       setSession((cur) => (cur ? { ...cur, mode: body.session.mode } : cur));
       setSegment(body.segment);
