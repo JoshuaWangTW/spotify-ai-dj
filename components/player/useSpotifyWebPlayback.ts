@@ -392,8 +392,22 @@ export function useSpotifyWebPlayback() {
     [syncCurrentPlayerState],
   );
 
+  // Unlock the SDK's audio element. Must be called inside a user gesture
+  // (e.g. button onClick) before the first remote play so the browser
+  // doesn't block playback under its autoplay policy.
+  const activateElement = useCallback(async () => {
+    const player = playerRef.current;
+    if (!player) return;
+    try {
+      await player.activateElement();
+    } catch {
+      /* harmless */
+    }
+  }, []);
+
   return {
     activateBrowserDevice,
+    activateElement,
     deviceId,
     isPlaying,
     notice,

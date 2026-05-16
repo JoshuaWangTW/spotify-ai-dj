@@ -61,6 +61,7 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
     session: radioSession,
     setDraftPrompt,
     setActiveDeviceId,
+    setPlayerActivator,
     tickSession,
   } = useRadio();
   const autoTransferAttemptedRef = useRef(false);
@@ -77,6 +78,14 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
   useEffect(() => {
     setActiveDeviceId(playback.deviceId ?? null);
   }, [playback.deviceId, setActiveDeviceId]);
+
+  // Hand RadioContext a way to unlock the SDK's audio element. It calls
+  // this at the start of every startSession() so the first remote play
+  // doesn't get blocked by the browser autoplay policy.
+  useEffect(() => {
+    setPlayerActivator(playback.activateElement);
+    return () => setPlayerActivator(null);
+  }, [playback.activateElement, setPlayerActivator]);
 
   // First time the SDK reports a device id, transfer playback to it so the
   // user is unambiguously on the browser player. Use 'play: false' (per

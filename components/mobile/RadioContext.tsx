@@ -61,6 +61,10 @@ export type RadioContextValue = {
   /** Register the current Web Playback SDK device id so /api/radio/*
    *  can start playback on the browser player directly. */
   setActiveDeviceId: (id: string | null) => void;
+  /** Register a function that unlocks the Web Playback SDK audio element
+   *  (must be called from a user gesture). RadioContext invokes it at the
+   *  start of every startSession() call. */
+  setPlayerActivator: (fn: (() => Promise<void>) | null) => void;
   // Actions
   startSession: (args: {
     prompt: string;
@@ -124,6 +128,26 @@ export function RadioProvider({ children }: ProviderProps) {
   const setActiveDeviceId = useCallback((id: string | null) => {
     deviceIdRef.current = id;
   }, []);
+
+  // SDK audio-element activator registered by MobileShell.
+  const playerActivatorRef = useRef<(() => Promise<void>) | null>(null);
+  const setPlayerActivator = useCallback(
+    (fn: (() => Promise<void>) | null) => {
+      playerActivatorRef.current = fn;
+    },
+    [],
+  );
+
+  // Wait up to `timeoutMs` for the SDK to register a deviceId.
+  async function waitForDeviceId(timeoutMs: number): Promise<string | null> {
+    if (deviceIdRef.current) return deviceIdRef.current;
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      await new Promise((r) => setTimeout(r, 100));
+      if (deviceIdRef.current) return deviceIdRef.current;
+    }
+    return deviceIdRef.current;
+  }
 
   // TTS state — keep a ref so the callback always reads the latest value
   const ttsEnabledRef = useRef<boolean>(true);
@@ -222,6 +246,26 @@ export function RadioProvider({ children }: ProviderProps) {
       if (!trimmed) return null;
       setStarting(true);
       setError(null);
+
+      // 1. Unlock the SDK audio element while we still have the user
+      //    gesture from the Start Session click. Browser autoplay policies
+      //    require this for the first remote play.
+      try {
+        await playerActivatorRef.current?.();
+      } catch {
+        /* non-fatal */
+      }
+
+      // 2. Make sure we actually have a browser deviceId to play on.
+      //    Without it, /api/radio/start falls back to the queue endpoint
+      //    which silently fails to start playback. Wait up to 3s for SDK.
+      const deviceId = await waitForDeviceId(3000);
+      if (!deviceId) {
+        setError('瀏覽器播放器尚未就緒，請等 1–2 秒再試一次。');
+        setStarting(false);
+        return null;
+      }
+
       try {
         const llmSelection = readStoredLlmSelection();
         const r = await fetch('/api/radio/start', {
@@ -230,7 +274,7 @@ export function RadioProvider({ children }: ProviderProps) {
           body: JSON.stringify({
             autoplayQueue,
             clientTimeIso: new Date().toISOString(),
-            deviceId: deviceIdRef.current ?? undefined,
+            deviceId,
             llmModel: llmSelection.llmModel,
             llmProvider: llmSelection.llmProvider,
             mode,
@@ -353,6 +397,7 @@ export function RadioProvider({ children }: ProviderProps) {
       ttsEnabled,
       setTtsEnabled,
       setActiveDeviceId,
+      setPlayerActivator,
       startSession,
       tickSession,
       stopSession,
@@ -369,6 +414,7 @@ export function RadioProvider({ children }: ProviderProps) {
       ttsEnabled,
       setTtsEnabled,
       setActiveDeviceId,
+      setPlayerActivator,
       startSession,
       tickSession,
       stopSession,
