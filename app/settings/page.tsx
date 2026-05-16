@@ -52,12 +52,14 @@ export default function SettingsPage() {
             <a href="/" className="aqua-link text-sm">
               返回首頁
             </a>
-            <a
-              href="/api/auth/logout"
-              className="glass-control rounded-md px-3 py-1.5 text-sm text-slate-600 hover:border-sky-400/50 hover:text-white"
-            >
-              登出
-            </a>
+            <form action="/api/auth/logout" method="post">
+              <button
+                className="glass-control rounded-md px-3 py-1.5 text-sm text-slate-600 hover:border-sky-400/50 hover:text-white"
+                type="submit"
+              >
+                登出
+              </button>
+            </form>
           </div>
         </div>
 

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     return originError;
   }
 
-  const rateLimitError = rateLimitRequest({
+  const rateLimitError = await rateLimitRequest({
     key: getRequestRateLimitKey(request, 'auth:login'),
     limit: 20,
     windowMs: 10 * 60 * 1000,

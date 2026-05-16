@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
   }
 
-  const rateLimitError = rateLimitRequest({
+  const rateLimitError = await rateLimitRequest({
     key: `music-assistant:chat:${session.user.id}`,
     limit: 30,
     windowMs: 10 * 60 * 1000,
