@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { rateLimitRequest, validateSameOriginRequest } from '../../../../lib/api/security';
 import { getSpotifySession } from '../../../../lib/auth/session';
-import {
-  getValidSpotifyAccessToken,
-  SpotifyAccessTokenError,
-} from '../../../../lib/auth/spotify-access-token';
+import { getValidSpotifyAccessToken } from '../../../../lib/auth/spotify-access-token';
 import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
@@ -17,10 +15,7 @@ import {
   musicAssistantChatOutputSchema,
   type MusicAssistantOutput,
 } from '../../../../lib/music-assistant/schema';
-import {
-  fetchSpotifyRecentlyPlayed,
-  fetchSpotifyTopTracks,
-} from '../../../../lib/spotify';
+import { fetchSpotifyTopTracks, type SpotifyTrackSummary } from '../../../../lib/spotify';
 
 export const runtime = 'nodejs';
 
@@ -48,7 +43,62 @@ function buildProfileSummaryPatch(output: MusicAssistantOutput): {
   return patch;
 }
 
+function buildSpotifyTasteSummary(
+  tracks: SpotifyTrackSummary[] | null,
+): {
+  signals: string[];
+  source: string;
+  summary: string;
+} | null {
+  if (!tracks || tracks.length === 0) {
+    return null;
+  }
+
+  const artistCounts = new Map<string, number>();
+
+  for (const track of tracks) {
+    for (const artist of track.artist.split(',').map((value) => value.trim()).filter(Boolean)) {
+      artistCounts.set(artist, (artistCounts.get(artist) ?? 0) + 1);
+    }
+  }
+
+  const frequentArtists = [...artistCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([artist, count]) => `${artist} (${count})`);
+  const averagePopularity = Math.round(
+    tracks.reduce((sum, track) => sum + track.popularity, 0) / tracks.length,
+  );
+  const signals = [
+    `top_tracks_count=${tracks.length}`,
+    `average_popularity=${averagePopularity}`,
+  ];
+
+  if (frequentArtists.length > 0) {
+    signals.push(`frequent_artists=${frequentArtists.join(', ')}`);
+  }
+
+  return {
+    signals,
+    source: 'spotify_top_tracks_medium_term_opt_in',
+    summary: [
+      `使用者已明確允許使用 Spotify 中期 Top Tracks 摘要。`,
+      `共有 ${tracks.length} 首可分析曲目。`,
+      frequentArtists.length > 0 ? `常見藝人：${frequentArtists.join('、')}。` : '',
+      `平均 popularity 約 ${averagePopularity}/100。`,
+    ]
+      .filter(Boolean)
+      .join(''),
+  };
+}
+
 export async function POST(request: NextRequest) {
+  const originError = validateSameOriginRequest(request);
+
+  if (originError) {
+    return originError;
+  }
+
   let body: unknown;
 
   try {
@@ -67,6 +117,16 @@ export async function POST(request: NextRequest) {
 
   if (!session) {
     return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
+  const rateLimitError = rateLimitRequest({
+    key: `music-assistant:chat:${session.user.id}`,
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   try {
@@ -90,9 +150,11 @@ export async function POST(request: NextRequest) {
       return jsonError('CONVERSATION_NOT_FOUND', 'Assistant conversation was not found.', 404);
     }
 
-    const spotifyToken = await getValidSpotifyAccessToken(request).catch(() => null);
+    const spotifyToken = input.data.includeSpotifyTaste
+      ? await getValidSpotifyAccessToken(request).catch(() => null)
+      : null;
 
-    const [musicProfile, memory, recentMessages, topTracks, recentlyPlayed] = await Promise.all([
+    const [musicProfile, memory, recentMessages, topTracks] = await Promise.all([
       prisma.musicProfile.findUnique({
         select: {
           avoidSummary: true,
@@ -125,23 +187,15 @@ export async function POST(request: NextRequest) {
         where: { conversationId: conversation.id },
       }),
       spotifyToken ? fetchSpotifyTopTracks(spotifyToken.accessToken) : Promise.resolve(null),
-      spotifyToken ? fetchSpotifyRecentlyPlayed(spotifyToken.accessToken) : Promise.resolve(null),
     ]);
-
-    const spotifyHistory =
-      topTracks || recentlyPlayed
-        ? {
-            recentlyPlayed: recentlyPlayed ?? [],
-            topTracks: topTracks ?? [],
-          }
-        : null;
+    const spotifyTasteSummary = buildSpotifyTasteSummary(topTracks);
 
     const assistantOutput = await createOpenAiMusicAssistantReply(env.OPENAI_API_KEY, {
       memory,
       message: input.data.message,
       profile: musicProfile,
       recentMessages: recentMessages.reverse(),
-      spotifyHistory,
+      spotifyTasteSummary,
     });
     const profilePatch = buildProfileSummaryPatch(assistantOutput);
 
@@ -248,10 +302,6 @@ export async function POST(request: NextRequest) {
 
     if (isPrismaError(error)) {
       return jsonError('DATABASE_REQUEST_FAILED', 'Database request failed.', 500);
-    }
-
-    if (error instanceof SpotifyAccessTokenError) {
-      return jsonError(error.code, error.message, error.status);
     }
 
     if (error instanceof EnvValidationError) {

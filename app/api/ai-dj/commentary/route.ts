@@ -4,6 +4,7 @@ import {
   aiDjCommentaryInputSchema,
   type AiDjCommentaryOutput,
 } from '../../../../lib/ai-dj/commentary-schema';
+import { rateLimitRequest, validateSameOriginRequest } from '../../../../lib/api/security';
 import { getSpotifySession } from '../../../../lib/auth/session';
 import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { createOpenAiDjCommentary, OpenAiCommentaryError } from '../../../../lib/llm/openai';
@@ -64,6 +65,12 @@ function jsonError(code: string, message: string, status: number) {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = validateSameOriginRequest(request);
+
+  if (originError) {
+    return originError;
+  }
+
   let body: unknown;
 
   try {
@@ -82,6 +89,16 @@ export async function POST(request: NextRequest) {
 
   if (!session) {
     return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
+  const rateLimitError = rateLimitRequest({
+    key: `ai-dj:commentary:${session.user.id}`,
+    limit: 40,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   const cache = getCommentaryCache();

@@ -5,6 +5,7 @@ import {
   getValidSpotifyAccessToken,
   SpotifyAccessTokenError,
 } from '../../../../lib/auth/spotify-access-token';
+import { rateLimitRequest, validateSameOriginRequest } from '../../../../lib/api/security';
 import { EnvValidationError, getServerEnv } from '../../../../lib/config/env';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
@@ -47,6 +48,12 @@ function buildSegmentResponse(input: {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = validateSameOriginRequest(request);
+
+  if (originError) {
+    return originError;
+  }
+
   let body: unknown;
 
   try {
@@ -65,6 +72,16 @@ export async function POST(request: NextRequest) {
 
   if (!session) {
     return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
+  const rateLimitError = rateLimitRequest({
+    key: `radio:tick:${session.user.id}`,
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   try {

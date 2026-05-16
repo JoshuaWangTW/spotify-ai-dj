@@ -4,6 +4,11 @@ import { z } from 'zod';
 import { prisma } from '../../../../lib/db/prisma';
 import { hashPassword } from '../../../../lib/auth/password';
 import { createSpotifySession } from '../../../../lib/auth/session';
+import {
+  getRequestRateLimitKey,
+  rateLimitRequest,
+  validateSameOriginRequest,
+} from '../../../../lib/api/security';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -12,6 +17,22 @@ const registerSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const originError = validateSameOriginRequest(request);
+
+  if (originError) {
+    return originError;
+  }
+
+  const rateLimitError = rateLimitRequest({
+    key: getRequestRateLimitKey(request, 'auth:register'),
+    limit: 10,
+    windowMs: 30 * 60 * 1000,
+  });
+
+  if (rateLimitError) {
+    return rateLimitError;
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });

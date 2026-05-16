@@ -115,6 +115,10 @@ function testMusicAssistantChatInput() {
 
   assert.equal(parsed.success, true);
 
+  if (parsed.success) {
+    assert.equal(parsed.data.includeSpotifyTaste, false);
+  }
+
   const empty = musicAssistantChatInputSchema.safeParse({
     message: '   ',
   });

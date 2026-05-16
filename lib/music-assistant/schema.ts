@@ -11,6 +11,7 @@ export const musicMemoryTypeSchema = z.enum([
 export const musicAssistantChatInputSchema = z
   .object({
     conversationId: z.string().trim().min(1).max(128).optional(),
+    includeSpotifyTaste: z.boolean().default(false),
     message: z.string().trim().min(1).max(1200),
   })
   .strict();

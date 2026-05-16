@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { rateLimitRequest, validateSameOriginRequest } from '../../../../lib/api/security';
 import { getSpotifySession } from '../../../../lib/auth/session';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
@@ -90,6 +91,12 @@ function buildAvoidSummary(feedback: FeedbackForSummary[]): string {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = validateSameOriginRequest(request);
+
+  if (originError) {
+    return originError;
+  }
+
   let body: unknown;
 
   try {
@@ -108,6 +115,16 @@ export async function POST(request: NextRequest) {
 
   if (!session) {
     return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
+  const rateLimitError = rateLimitRequest({
+    key: `feedback:track:${session.user.id}`,
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   const context = JSON.stringify({

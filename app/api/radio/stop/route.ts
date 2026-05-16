@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { rateLimitRequest, validateSameOriginRequest } from '../../../../lib/api/security';
 import { getSpotifySession } from '../../../../lib/auth/session';
 import { isPrismaError } from '../../../../lib/db/errors';
 import { prisma } from '../../../../lib/db/prisma';
@@ -12,6 +13,12 @@ function jsonError(code: string, message: string, status: number) {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = validateSameOriginRequest(request);
+
+  if (originError) {
+    return originError;
+  }
+
   let body: unknown;
 
   try {
@@ -30,6 +37,16 @@ export async function POST(request: NextRequest) {
 
   if (!session) {
     return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
+  const rateLimitError = rateLimitRequest({
+    key: `radio:stop:${session.user.id}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   try {

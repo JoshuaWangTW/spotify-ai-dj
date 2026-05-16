@@ -54,6 +54,11 @@ type AssistantRadioPromptEventDetail = {
   prompt: string;
 };
 
+type DjIntroAudioState = {
+  audio: HTMLAudioElement;
+  objectUrl: string;
+};
+
 function isApiError(body: unknown): body is ApiError {
   return typeof body === 'object' && body !== null && 'error' in body;
 }
@@ -91,7 +96,7 @@ export default function RadioConsole() {
     sessionStatus: null as RadioStartOutput['session']['status'] | null,
   });
   const autoTickInFlightRef = useRef(false);
-  const djIntroAudioRef = useRef<HTMLAudioElement | null>(null);
+  const djIntroAudioRef = useRef<DjIntroAudioState | null>(null);
   const ttsEnabledRef = useRef(true);
   const [autoplayQueue, setAutoplayQueue] = useState(true);
   const [ttsEnabled, setTtsEnabled] = useState(true);
@@ -117,24 +122,28 @@ export default function RadioConsole() {
     ttsEnabledRef.current = ttsEnabled;
   }, [ttsEnabled]);
 
-  useEffect(() => {
-    return () => {
-      if (djIntroAudioRef.current) {
-        djIntroAudioRef.current.pause();
-        djIntroAudioRef.current = null;
-      }
-    };
+  const stopDjIntroTts = useCallback(() => {
+    const current = djIntroAudioRef.current;
+
+    if (!current) {
+      return;
+    }
+
+    current.audio.pause();
+    current.audio.onended = null;
+    current.audio.onerror = null;
+    URL.revokeObjectURL(current.objectUrl);
+    djIntroAudioRef.current = null;
   }, []);
+
+  useEffect(() => stopDjIntroTts, [stopDjIntroTts]);
 
   const playDjIntroTts = useCallback(async (text: string) => {
     if (!ttsEnabledRef.current) {
       return;
     }
 
-    if (djIntroAudioRef.current) {
-      djIntroAudioRef.current.pause();
-      djIntroAudioRef.current = null;
-    }
+    stopDjIntroTts();
 
     try {
       const response = await fetch('/api/ai-dj/commentary/tts', {
@@ -150,26 +159,25 @@ export default function RadioConsole() {
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
-      djIntroAudioRef.current = audio;
+      const audioState = { audio, objectUrl: audioUrl };
+      djIntroAudioRef.current = audioState;
 
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        if (djIntroAudioRef.current === audio) {
+      const clearAudioState = () => {
+        if (djIntroAudioRef.current === audioState) {
+          URL.revokeObjectURL(audioUrl);
           djIntroAudioRef.current = null;
         }
       };
-      audio.onerror = () => {
-        URL.revokeObjectURL(audioUrl);
-        if (djIntroAudioRef.current === audio) {
-          djIntroAudioRef.current = null;
-        }
-      };
+
+      audio.onended = clearAudioState;
+      audio.onerror = clearAudioState;
 
       await audio.play();
     } catch {
+      stopDjIntroTts();
       // TTS 失敗不中斷主流程
     }
-  }, []);
+  }, [stopDjIntroTts]);
 
   const applyTickResult = useCallback((body: RadioTickOutput) => {
     setSession((current) => (current ? { ...current, mode: body.session.mode } : current));
@@ -400,6 +408,7 @@ export default function RadioConsole() {
       }
 
       setSession((current) => (current ? { ...current, status: body.session.status } : current));
+      stopDjIntroTts();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Radio stop 失敗。');
     } finally {
@@ -521,9 +530,8 @@ export default function RadioConsole() {
               ttsEnabled ? 'bg-sky-500' : 'bg-slate-200'
             }`}
             onClick={() => {
-              if (ttsEnabled && djIntroAudioRef.current) {
-                djIntroAudioRef.current.pause();
-                djIntroAudioRef.current = null;
+              if (ttsEnabled) {
+                stopDjIntroTts();
               }
               setTtsEnabled((current) => !current);
             }}

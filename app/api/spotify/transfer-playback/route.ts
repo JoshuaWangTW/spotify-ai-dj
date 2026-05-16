@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { rateLimitRequest, validateSameOriginRequest } from '../../../../lib/api/security';
+import { getSpotifySession } from '../../../../lib/auth/session';
 import {
   getValidSpotifyAccessToken,
   SpotifyAccessTokenError,
@@ -15,6 +17,12 @@ function jsonError(code: string, message: string, status: number) {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = validateSameOriginRequest(request);
+
+  if (originError) {
+    return originError;
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -25,6 +33,22 @@ export async function POST(request: NextRequest) {
   const input = inputSchema.safeParse(body);
   if (!input.success) {
     return jsonError('INVALID_INPUT', 'deviceId is required.', 400);
+  }
+
+  const session = getSpotifySession(request);
+
+  if (!session) {
+    return jsonError('SESSION_REQUIRED', 'Login is required.', 401);
+  }
+
+  const rateLimitError = rateLimitRequest({
+    key: `spotify:transfer:${session.user.id}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   try {

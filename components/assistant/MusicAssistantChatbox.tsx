@@ -50,6 +50,7 @@ function sendRadioPromptToConsole(prompt: string, autoStart: boolean): void {
 export default function MusicAssistantChatbox() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [includeSpotifyTaste, setIncludeSpotifyTaste] = useState(false);
   const [input, setInput] = useState('我沒有很多歷史歌單，想從對話開始建立我的音樂偏好。');
   const [isSending, setIsSending] = useState(false);
   const [radioPromptApplied, setRadioPromptApplied] = useState(false);
@@ -78,6 +79,7 @@ export default function MusicAssistantChatbox() {
       const response = await fetch('/api/music-assistant/chat', {
         body: JSON.stringify({
           conversationId: conversationId ?? undefined,
+          includeSpotifyTaste,
           message,
         }),
         headers: { 'Content-Type': 'application/json' },
@@ -143,13 +145,24 @@ export default function MusicAssistantChatbox() {
           </div>
 
           <div className="mt-3 flex flex-col gap-2 md:flex-row">
-            <textarea
-              className="min-h-24 flex-1 resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-600"
-              maxLength={1200}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="跟我聊你的音樂偏好、想避開的東西、工作/晚上/烘豆時需要的氛圍..."
-              value={input}
-            />
+            <div className="flex flex-1 flex-col gap-2">
+              <textarea
+                className="min-h-24 resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-600"
+                maxLength={1200}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder="跟我聊你的音樂偏好、想避開的東西、工作/晚上/烘豆時需要的氛圍..."
+                value={input}
+              />
+              <label className="inline-flex items-center gap-2 self-start rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+                <input
+                  checked={includeSpotifyTaste}
+                  className="h-4 w-4 accent-violet-700"
+                  onChange={(event) => setIncludeSpotifyTaste(event.target.checked)}
+                  type="checkbox"
+                />
+                使用 Spotify Top Tracks 摘要
+              </label>
+            </div>
             <button
               className="rounded-md border border-violet-700 bg-violet-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-violet-800 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
               disabled={isSending || input.trim().length === 0}
