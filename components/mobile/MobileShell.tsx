@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import BottomTabs, { type TabId } from './BottomTabs';
 import MiniPlayer from './MiniPlayer';
 import { RadioProvider, useRadio } from './RadioContext';
+import { useScreenWakeLock } from '../player/useScreenWakeLock';
 import { useSpotifyWebPlayback } from '../player/useSpotifyWebPlayback';
 
 import ForYouScreen from './screens/ForYouScreen';
@@ -168,6 +169,7 @@ function MobileShellInner({ sessionUser, authBanner }: Props) {
   );
 
   const hasSomethingPlaying = !!playback.track || !!segment;
+  useScreenWakeLock(radioSession?.status === 'active');
 
   return (
     <div

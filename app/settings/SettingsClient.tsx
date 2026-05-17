@@ -23,6 +23,18 @@ type PersonaOption = {
   name: string;
 };
 
+type DjMetrics = {
+  audioCacheHitRate: number;
+  averageEstimatedCostUsd: number;
+  estimatedCostLimitUsd: number;
+  estimatedLlmCostPerMissUsd: number;
+  scriptCacheHitRate: number;
+  scriptMisses: number;
+  scriptRequests: number;
+  ttsAudioMisses: number;
+  ttsAudioRequests: number;
+};
+
 function StatusRow({ configured, label }: { configured: boolean; label: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200/80 bg-white/40 px-4 py-3">
@@ -40,8 +52,18 @@ function StatusRow({ configured, label }: { configured: boolean; label: string }
   );
 }
 
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(6)}`;
+}
+
 export default function SettingsClient({ initialData }: { initialData: SettingsData }) {
   const hasEnvIssues = !initialData?.ok;
+  const [djMetrics, setDjMetrics] = useState<DjMetrics | null>(null);
+  const [djMetricsStatus, setDjMetricsStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [personaId, setPersonaId] = useState('midnight');
   const [personas, setPersonas] = useState<PersonaOption[]>([]);
   const [personaStatus, setPersonaStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -75,6 +97,48 @@ export default function SettingsClient({ initialData }: { initialData: SettingsD
       .catch(() => {
         if (!cancelled) {
           setPersonaStatus('error');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setDjMetricsStatus('loading');
+
+    void fetch('/api/dj/metrics', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { metrics?: unknown } | null) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (!body || typeof body.metrics !== 'object' || body.metrics === null) {
+          setDjMetricsStatus('error');
+          return;
+        }
+
+        const metrics = body.metrics as Partial<DjMetrics>;
+
+        if (
+          typeof metrics.scriptCacheHitRate !== 'number' ||
+          typeof metrics.audioCacheHitRate !== 'number' ||
+          typeof metrics.averageEstimatedCostUsd !== 'number'
+        ) {
+          setDjMetricsStatus('error');
+          return;
+        }
+
+        setDjMetrics(metrics as DjMetrics);
+        setDjMetricsStatus('idle');
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDjMetricsStatus('error');
         }
       });
 
@@ -140,6 +204,71 @@ export default function SettingsClient({ initialData }: { initialData: SettingsD
 
       <div className="rounded-lg border border-slate-200/80 bg-white/40 p-4">
         <LlmModelPicker />
+      </div>
+
+      <div className="rounded-lg border border-slate-200/80 bg-white/40 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">DJ cost metrics</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              依目前 cache hit 記錄估算，目標是平均每首低於 $0.001。
+            </p>
+          </div>
+          <span
+            className={`rounded-md border px-2 py-1 text-xs font-medium ${
+              djMetrics && djMetrics.averageEstimatedCostUsd <= djMetrics.estimatedCostLimitUsd
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                : 'border-slate-300 bg-white text-slate-500'
+            }`}
+          >
+            {djMetricsStatus === 'loading'
+              ? '讀取中'
+              : djMetricsStatus === 'error'
+                ? '無資料'
+                : djMetrics && djMetrics.averageEstimatedCostUsd <= djMetrics.estimatedCostLimitUsd
+                  ? 'Within limit'
+                  : 'No samples'}
+          </span>
+        </div>
+
+        {djMetrics ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md border border-slate-200/80 bg-white/60 px-3 py-2">
+              <p className="text-xs text-slate-400">Script cache hit rate</p>
+              <p className="mt-1 text-lg font-semibold text-slate-800">
+                {formatPercent(djMetrics.scriptCacheHitRate)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {djMetrics.scriptRequests} requests / {djMetrics.scriptMisses} misses
+              </p>
+            </div>
+            <div className="rounded-md border border-slate-200/80 bg-white/60 px-3 py-2">
+              <p className="text-xs text-slate-400">TTS audio cache hit rate</p>
+              <p className="mt-1 text-lg font-semibold text-slate-800">
+                {formatPercent(djMetrics.audioCacheHitRate)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {djMetrics.ttsAudioRequests} requests / {djMetrics.ttsAudioMisses} misses
+              </p>
+            </div>
+            <div className="rounded-md border border-slate-200/80 bg-white/60 px-3 py-2 sm:col-span-2">
+              <p className="text-xs text-slate-400">Estimated average LLM cost per song</p>
+              <p className="mt-1 text-lg font-semibold text-slate-800">
+                {formatUsd(djMetrics.averageEstimatedCostUsd)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Miss estimate {formatUsd(djMetrics.estimatedLlmCostPerMissUsd)} / limit{' '}
+                {formatUsd(djMetrics.estimatedCostLimitUsd)}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-slate-500">
+            {djMetricsStatus === 'error'
+              ? '目前無法讀取 metrics。'
+              : '播放一段 Radio Session 後會開始累積。'}
+          </p>
+        )}
       </div>
 
       <div className="rounded-lg border border-slate-200/80 bg-white/40 p-4">
