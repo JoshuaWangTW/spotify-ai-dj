@@ -5,6 +5,7 @@ import {
   musicAssistantOutputSchema,
 } from '../lib/music-assistant/schema';
 import { determineRadioProgrammingContext } from '../lib/radio/programming';
+import { applyQiaomuGenreMatchesToPlan } from '../lib/radio/qiaomu-enhancer-core';
 import {
   applyRadioSearchPolicy,
   buildRadioSearchPolicyInstruction,
@@ -16,6 +17,7 @@ import {
   radioTickInputSchema,
   type RadioSegmentPlanOutput,
 } from '../lib/radio/schema';
+import { buildSpotifySearchQueryVariants } from '../lib/spotify-search';
 
 function testProgrammingAutoModeFromPrompt() {
   const context = determineRadioProgrammingContext({
@@ -203,6 +205,64 @@ function testGenericIntentParsingAndSearchPolicy() {
   assert.ok(rewritten.spotifySearchQueries.every((query) => !/BTS|Carmen|Bizet/i.test(query)));
 }
 
+function testSpotifySearchQueryVariants() {
+  const variants = buildSpotifySearchQueryVariants('artist:"羊文学" Japanese indie rock mellow');
+
+  assert.deepEqual(variants, [
+    'artist:"羊文学" Japanese indie rock mellow',
+    '羊文学 Japanese indie rock mellow',
+    '羊文学 top tracks',
+    '羊文学',
+  ]);
+
+  assert.deepEqual(buildSpotifySearchQueryVariants('soft Japanese rock'), ['soft Japanese rock']);
+}
+
+function testQiaomuGenreEnhancerUsesSpecificSubgenres() {
+  const plan: RadioSegmentPlanOutput = {
+    difficulty: 'beginner',
+    djIntro: '把夜色裡的吉他聲拉近一點，讓聲牆保持柔軟而不壓迫。',
+    energy: 0.38,
+    mode: 'dinner_store_background',
+    queueReasoning: [
+      '先從模糊吉他聲牆建立夜晚質地',
+      '接著保留中低速節奏',
+      '避免過度流行主旋律',
+      '讓人聲退到比較空氣感的位置',
+      '最後銜接到更安靜的 dream pop 方向',
+    ],
+    segmentTitle: 'Shoegaze Night',
+    situation: 'user-directed listening',
+    spotifySearchQueries: [
+      'soft night music',
+      'mellow rock',
+      'dreamy guitar music',
+      'evening indie playlist',
+      'soft vocal rock',
+    ],
+    transitionNote: '下一段可以往 dream pop 或 ambient pop 延伸。',
+    vocalPreference: 'medium',
+  };
+
+  const enhanced = applyQiaomuGenreMatchesToPlan({
+    matches: [
+      {
+        children: ['Dream Pop', 'Noise Pop'],
+        name: 'Shoegaze',
+        parent: 'Rock',
+        related: ['Ambient Pop'],
+        score: 120,
+      },
+    ],
+    plan,
+    prompt: '輕柔 shoegaze 夜晚',
+  });
+
+  assert.match(enhanced.spotifySearchQueries[0], /Shoegaze/);
+  assert.ok(enhanced.spotifySearchQueries.some((query) => /Dream Pop|Ambient Pop/.test(query)));
+  assert.equal(enhanced.spotifySearchQueries.length, 5);
+}
+
 function testMusicAssistantChatInput() {
   const parsed = musicAssistantChatInputSchema.safeParse({
     message: '我想慢慢建立我的爵士偏好，先從舒服、不太吵的鋼琴開始。',
@@ -268,6 +328,8 @@ testTickInputDefaultsAndFeedbackLimit();
 testSegmentPlanRequiresFiveToEightQueries();
 testJapaneseRockSearchPolicy();
 testGenericIntentParsingAndSearchPolicy();
+testSpotifySearchQueryVariants();
+testQiaomuGenreEnhancerUsesSpecificSubgenres();
 testMusicAssistantChatInput();
 testMusicAssistantOutputMemoryCandidates();
 

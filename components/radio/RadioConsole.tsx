@@ -9,6 +9,7 @@ import type {
   RadioTickOutput,
   RadioStopOutput,
 } from '../../lib/radio/schema';
+import type { QiaomuGenreHint, QiaomuGenresOutput } from '../../lib/qiaomu/schema';
 import type { SpotifyTrackCandidate } from '../../lib/spotify-types';
 import LlmModelPicker from '../llm/LlmModelPicker';
 import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
@@ -103,6 +104,10 @@ export default function RadioConsole() {
   const [feedbackStatusByKey, setFeedbackStatusByKey] = useState<Record<string, FeedbackStatus>>(
     {},
   );
+  const [genreBrowserConfigured, setGenreBrowserConfigured] = useState<boolean | null>(null);
+  const [genreMatches, setGenreMatches] = useState<QiaomuGenreHint[]>([]);
+  const [genreSearch, setGenreSearch] = useState('');
+  const [isLoadingGenres, setIsLoadingGenres] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [isTicking, setIsTicking] = useState(false);
@@ -233,6 +238,42 @@ export default function RadioConsole() {
       return body;
     },
     [],
+  );
+
+  const loadQiaomuGenres = useCallback(
+    async (query?: string) => {
+      const queryToUse = (query ?? genreSearch).trim() || prompt.trim();
+
+      setIsLoadingGenres(true);
+
+      try {
+        const params = new URLSearchParams({ limit: '12' });
+
+        if (queryToUse) {
+          params.set('q', queryToUse);
+        }
+
+        const response = await fetch(`/api/qiaomu/genres?${params.toString()}`, {
+          cache: 'no-store',
+        });
+        const body = await readJsonResponse<QiaomuGenresOutput | ApiError>(
+          response,
+          'Qiaomu genre 回傳格式錯誤。',
+        );
+
+        if (!response.ok || isApiError(body)) {
+          throw new Error(getApiErrorMessage(body, 'Qiaomu genre 搜尋失敗。'));
+        }
+
+        setGenreBrowserConfigured(body.configured);
+        setGenreMatches(body.matches);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'Qiaomu genre 搜尋失敗。');
+      } finally {
+        setIsLoadingGenres(false);
+      }
+    },
+    [genreSearch, prompt],
   );
 
   const autoTickIfQueueIsLow = useCallback(async () => {
@@ -472,6 +513,20 @@ export default function RadioConsole() {
     ]);
   }
 
+  function applyGenreHintToPrompt(hint: QiaomuGenreHint) {
+    const label = hint.parent ? `${hint.name} (${hint.parent})` : hint.name;
+
+    setPrompt((current) => {
+      const trimmed = current.trim();
+
+      if (trimmed.toLowerCase().includes(hint.name.toLowerCase())) {
+        return current;
+      }
+
+      return trimmed ? `${trimmed}；曲風：${label}` : `曲風：${label}`;
+    });
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(320px,420px)_1fr]">
       <section className="glass-panel rounded-lg p-5">
@@ -524,6 +579,53 @@ export default function RadioConsole() {
           onChange={(event) => setPrompt(event.target.value)}
           value={prompt}
         />
+
+        <div className="mt-3 rounded-md border border-slate-200/70 bg-white/45 p-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              className="min-h-10 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-500"
+              disabled={session?.status === 'active'}
+              maxLength={160}
+              onChange={(event) => setGenreSearch(event.target.value)}
+              placeholder="搜尋細曲風，例如 shoegaze、post-rock、ambient pop"
+              value={genreSearch}
+            />
+            <button
+              className="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
+              disabled={isLoadingGenres || session?.status === 'active'}
+              onClick={() => void loadQiaomuGenres()}
+              type="button"
+            >
+              {isLoadingGenres ? '搜尋中...' : 'Find Genre'}
+            </button>
+          </div>
+
+          {genreBrowserConfigured === false ? (
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              尚未設定 Qiaomu genre DB。設定 QIAOMU_GENRE_DB_DIR 後可啟用細曲風搜尋。
+            </p>
+          ) : null}
+
+          {genreMatches.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {genreMatches.map((hint) => (
+                <button
+                  key={`${hint.name}-${hint.parent ?? 'root'}`}
+                  className="rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-left text-xs font-semibold text-sky-800 hover:border-sky-500 hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                  disabled={session?.status === 'active'}
+                  onClick={() => applyGenreHintToPrompt(hint)}
+                  title={hint.description}
+                  type="button"
+                >
+                  {hint.name}
+                  {hint.parent ? (
+                    <span className="ml-1 font-medium text-sky-600">/ {hint.parent}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         <div className="mt-4 flex items-center justify-between rounded-md border border-slate-200/70 bg-white/40 px-3 py-2">
           <span className="text-sm text-slate-600">自動加入 Spotify queue</span>
@@ -610,6 +712,22 @@ export default function RadioConsole() {
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
               {segment.plan.segmentTitle}
             </p>
+            {segment.genreHints.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {segment.genreHints.map((hint) => (
+                  <span
+                    key={`${hint.name}-${hint.parent ?? 'root'}`}
+                    className="rounded-md border border-sky-200 bg-white/80 px-2 py-1 text-xs font-semibold text-sky-800"
+                    title={hint.description}
+                  >
+                    {hint.name}
+                    {hint.parent ? (
+                      <span className="ml-1 font-medium text-sky-600">/ {hint.parent}</span>
+                    ) : null}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <p className="mt-2 text-sm leading-6 text-slate-700">{segment.plan.djIntro}</p>
             <p className="mt-3 border-l-2 border-sky-400/60 pl-3 text-sm leading-6 text-slate-600">
               {segment.plan.transitionNote}

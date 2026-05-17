@@ -13,7 +13,9 @@ import { AnthropicLlmError } from '../../../../lib/llm/anthropic';
 import { LlmProviderConfigError, createProviderRadioSegment } from '../../../../lib/llm/provider';
 import { OpenAiRadioError } from '../../../../lib/llm/radio-openai';
 import { determineRadioProgrammingContext } from '../../../../lib/radio/programming';
+import { applyQiaomuGenreEnhancement } from '../../../../lib/radio/qiaomu-enhancer';
 import { applyRadioSearchPolicy } from '../../../../lib/radio/search-policy';
+import type { QiaomuGenreHint } from '../../../../lib/qiaomu/schema';
 import {
   radioTickInputSchema,
   radioTickOutputSchema,
@@ -37,6 +39,7 @@ function jsonError(code: string, message: string, status: number) {
 }
 
 function buildSegmentResponse(input: {
+  genreHints?: QiaomuGenreHint[];
   id: string;
   index: number;
   plan: RadioSegmentPlanOutput;
@@ -44,6 +47,7 @@ function buildSegmentResponse(input: {
   tracks: SpotifyTrackCandidate[];
 }) {
   return {
+    genreHints: input.genreHints ?? [],
     id: input.id,
     index: input.index,
     plan: input.plan,
@@ -142,20 +146,25 @@ export async function POST(request: NextRequest) {
       where: { userId: session.user.id },
     });
 
-    const plan = applyRadioSearchPolicy(
-      radioSession.userPrompt,
-      await createProviderRadioSegment(env, {
-        feedback: input.data.feedback,
-        llmModel: input.data.llmModel,
-        llmProvider: input.data.llmProvider,
-        playbackState,
+    const qiaomuPlan = await applyQiaomuGenreEnhancement({
+      plan: applyRadioSearchPolicy(
+        radioSession.userPrompt,
+        await createProviderRadioSegment(env, {
+          feedback: input.data.feedback,
+          llmModel: input.data.llmModel,
+          llmProvider: input.data.llmProvider,
+          playbackState,
+          previousSegment,
+          profile: musicProfile,
+          programming,
+          prompt: radioSession.userPrompt,
+        }),
         previousSegment,
-        profile: musicProfile,
-        programming,
-        prompt: radioSession.userPrompt,
-      }),
+      ),
       previousSegment,
-    );
+      prompt: radioSession.userPrompt,
+    });
+    const plan = qiaomuPlan.plan;
     let tracks: SpotifyTrackCandidate[] = [];
     let queuedTrackUris: string[] = [];
     let queueWarning: RadioQueueWarning | undefined;
@@ -273,6 +282,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       queueWarning,
       segment: buildSegmentResponse({
+        genreHints: qiaomuPlan.genreHints,
         id: segment.id,
         index: segment.index,
         plan,

@@ -2,6 +2,7 @@ import 'server-only';
 
 import { z } from 'zod';
 
+import { buildSpotifySearchQueryVariants } from './spotify-search';
 import type { SpotifyTrackCandidate } from './spotify-types';
 
 export type SpotifyAppCredentials = {
@@ -266,9 +267,7 @@ function normalizeSpotifyTrack(
 function selectBestTrackCandidates(
   tracks: Array<z.infer<typeof spotifySearchTrackSchema>>,
 ): Array<z.infer<typeof spotifySearchTrackSchema>> {
-  const playableTracks = tracks.filter(
-    (track) => track.is_playable !== false && track.is_playable !== null,
-  );
+  const playableTracks = tracks.filter((track) => track.is_playable !== false);
 
   return playableTracks.sort((first, second) => {
     if (first.explicit !== second.explicit) {
@@ -348,7 +347,7 @@ async function searchSpotifyTrackCandidatesForQuery(
   const searchUrl = new URL(SPOTIFY_SEARCH_URL);
   searchUrl.searchParams.set('q', normalizedQuery);
   searchUrl.searchParams.set('type', 'track');
-  searchUrl.searchParams.set('limit', '5');
+  searchUrl.searchParams.set('limit', '10');
   searchUrl.searchParams.set('market', 'from_token');
 
   const response = await fetch(searchUrl, {
@@ -374,8 +373,27 @@ async function searchSpotifyTrackCandidatesForQuery(
   }
 
   return selectBestTrackCandidates(parsed.data.tracks.items)
-    .slice(0, 3)
+    .slice(0, 4)
     .map((track) => normalizeSpotifyTrack(normalizedQuery, track));
+}
+
+async function searchSpotifyTrackCandidatesWithFallback(
+  accessToken: string,
+  query: string,
+): Promise<SpotifyTrackCandidate[]> {
+  let lastCandidates: SpotifyTrackCandidate[] = [];
+
+  for (const variant of buildSpotifySearchQueryVariants(query)) {
+    const candidates = await searchSpotifyTrackCandidatesForQuery(accessToken, variant);
+
+    if (candidates.length > 0) {
+      return candidates;
+    }
+
+    lastCandidates = candidates;
+  }
+
+  return lastCandidates;
 }
 
 export async function searchSpotifyTracks(
@@ -390,7 +408,7 @@ export async function searchSpotifyTracks(
 
   for (const query of queries) {
     try {
-      const queryCandidates = await searchSpotifyTrackCandidatesForQuery(accessToken, query);
+      const queryCandidates = await searchSpotifyTrackCandidatesWithFallback(accessToken, query);
 
       candidateGroups.push(queryCandidates);
     } catch (error) {

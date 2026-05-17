@@ -11,6 +11,8 @@ out
 !.env.example
 .pnpm-store
 .cache/
+data/qiaomu/
+data/qiaomu-music-player-spotify/
 tsconfig.tsbuildinfo
 .claude/
 nextjs-migration/

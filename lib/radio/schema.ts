@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { aiDjModeSchema } from '../ai-dj/plan-schema';
 import { llmModelSchema, llmProviderSchema } from '../llm/model-options';
+import { qiaomuGenreHintSchema } from '../qiaomu/schema';
 
 export const radioSessionStatusSchema = z.enum(['active', 'stopped']);
 export const radioEventTypeSchema = z.enum([
@@ -109,6 +110,7 @@ export const radioTrackCandidateSchema = z
 
 export const radioSegmentResponseSchema = z
   .object({
+    genreHints: z.array(qiaomuGenreHintSchema).max(5).default([]),
     id: z.string(),
     index: z.number().int().nonnegative(),
     plan: radioSegmentPlanOutputSchema,

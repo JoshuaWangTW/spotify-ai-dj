@@ -50,6 +50,7 @@ const serverEnvSchema = z
       z.number().min(0.1).max(0.95).default(0.5),
     ),
     ADMIN_CLEANUP_TOKEN: optionalSecretSchema,
+    QIAOMU_GENRE_DB_DIR: z.string().trim().min(1).max(260).optional(),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   })
   .superRefine((env, context) => {
