@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 
 import { bucketHour, makeDjCacheKey, makeTtsScriptHash } from '../lib/dj/cache';
 import { tryFastPathDjScript } from '../lib/dj/fast-path';
+import { estimateDjCacheMetrics } from '../lib/dj/metrics-core';
 
 function testHourBuckets() {
   assert.equal(bucketHour(0), 0);
@@ -80,9 +81,25 @@ function testFastPathBeforeLlm() {
   assert.ok(script && script.length > 20);
 }
 
+function testDjMetricsEstimate() {
+  const metrics = estimateDjCacheMetrics({
+    scriptHits: 12,
+    scriptMisses: 8,
+    ttsAudioHits: 15,
+    ttsAudioMisses: 5,
+  });
+
+  assert.equal(metrics.scriptRequests, 20);
+  assert.equal(metrics.scriptCacheHitRate, 0.6);
+  assert.equal(metrics.audioCacheHitRate, 0.75);
+  assert.equal(metrics.averageEstimatedCostUsd, 0.00012);
+  assert.equal(metrics.averageEstimatedCostUsd < metrics.estimatedCostLimitUsd, true);
+}
+
 testHourBuckets();
 testDjCacheKeyIgnoresRealtimeContext();
 testTtsHashUsesScriptAndVoiceOnly();
 testFastPathBeforeLlm();
+testDjMetricsEstimate();
 
 console.log('dj cache tests passed');

@@ -14,6 +14,7 @@ import LlmModelPicker from '../llm/LlmModelPicker';
 import { readStoredLlmSelection } from '../llm/useLlmModelPreference';
 import { speakBrowserText, stopBrowserSpeech } from '../player/browserSpeech';
 import NowPlaying from '../player/NowPlaying';
+import { useScreenWakeLock } from '../player/useScreenWakeLock';
 import QueueList from '../queue/QueueList';
 
 type ApiError = {
@@ -115,6 +116,7 @@ export default function RadioConsole() {
 
   const isBusy = isStarting || isTicking || isStopping;
   const currentMode = segment?.plan.mode ?? session?.mode ?? 'jazz_intro';
+  useScreenWakeLock(session?.status === 'active');
 
   useEffect(() => {
     ttsEnabledRef.current = ttsEnabled;
