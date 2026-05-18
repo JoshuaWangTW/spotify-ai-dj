@@ -1,5 +1,7 @@
 # Spotify AI DJ
 
+English | [繁體中文](README.zh-TW.md)
+
 A self-hosted PWA for running a personal AI radio session on top of Spotify Premium.
 
 The app plans short radio segments with an LLM, searches Spotify for playable tracks, starts playback in the browser through Spotify Web Playback SDK, and keeps extending the queue as the session continues. It also includes a music assistant chatbox that can learn listening preferences over time.
