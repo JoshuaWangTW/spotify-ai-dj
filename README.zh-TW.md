@@ -129,6 +129,54 @@ pnpm dev
 
 開啟 `http://localhost:3000`，登入後連結 Spotify，即可開始電台 session。
 
+## Docker 一鍵啟動（本機部署）
+
+不想手動裝 PostgreSQL，可以用 Docker Compose 一行起全套環境。
+
+**前提：** 安裝 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+### 步驟
+
+**1. 複製並填寫環境變數**
+
+```bash
+cp .env.example .env.local
+```
+
+填入 Spotify 金鑰、OpenAI 金鑰等。`DATABASE_URL` 不用改，Docker Compose 會自動覆蓋成容器內的資料庫位址。
+
+**2. 一鍵啟動**
+
+```bash
+docker compose up --build
+```
+
+首次啟動會：
+- 拉 PostgreSQL 16 映像
+- 建置 Next.js 應用程式
+- 自動執行 DB migration
+- 在 `http://localhost:3000` 啟動
+
+**3. 背景執行**
+
+```bash
+docker compose up --build -d
+```
+
+**停止：**
+
+```bash
+docker compose down
+```
+
+**停止並清除資料庫資料：**
+
+```bash
+docker compose down -v
+```
+
+> 注意：Docker 版本是 production build，沒有 hot reload。開發時建議直接跑 `pnpm dev`（PostgreSQL 可用 `docker compose up db -d` 單獨起）。
+
 ## Spotify 開發者設定
 
 在 [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) 建立應用程式，並加入 Redirect URI：
