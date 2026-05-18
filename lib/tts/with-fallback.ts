@@ -4,9 +4,10 @@ import type { ServerEnv } from '../config/env';
 import { AzureSpeechProvider } from './azure-speech';
 import { EdgeTtsProvider } from './edge-tts';
 import type { TtsSynthesizeOutput } from './index';
+import { OpenAiTtsProvider } from './openai-tts';
 
 export type TtsFallbackResult = {
-  provider: 'edge-tts' | 'azure' | 'browser-only';
+  provider: 'edge-tts' | 'azure' | 'openai' | 'browser-only';
   result: TtsSynthesizeOutput | null;
 };
 
@@ -25,6 +26,17 @@ export async function synthesizeWithFallback(input: {
       return {
         provider: 'edge-tts',
         result: await new EdgeTtsProvider().synthesize(input),
+      };
+    } catch {
+      // Continue to next provider.
+    }
+  }
+
+  if (input.env.TTS_PROVIDER === 'openai' && input.env.OPENAI_API_KEY) {
+    try {
+      return {
+        provider: 'openai',
+        result: await new OpenAiTtsProvider(input.env.OPENAI_API_KEY).synthesize(input),
       };
     } catch {
       // Continue to Azure if configured.

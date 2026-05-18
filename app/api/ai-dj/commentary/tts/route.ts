@@ -19,13 +19,6 @@ const commentaryTtsInputSchema = z
   })
   .strict();
 
-const voiceMap = {
-  coral: 'zh-TW-HsiaoChenNeural',
-  marin: 'zh-TW-YunJheNeural',
-  nova: 'zh-TW-HsiaoChenNeural',
-  shimmer: 'zh-TW-HsiaoYuNeural',
-} satisfies Record<z.infer<typeof openAiTtsVoiceSchema>, string>;
-
 function jsonError(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
@@ -73,7 +66,7 @@ export async function POST(request: NextRequest) {
       env,
       text: input.data.text,
       timeoutMs: 6_000,
-      voiceId: voiceMap[input.data.voice],
+      voiceId: input.data.voice,
     });
 
     if (!tts.result) {

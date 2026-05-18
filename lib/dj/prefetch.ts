@@ -8,7 +8,7 @@ import { generateDjScript } from './generate';
 import { getDjPersona } from './personas';
 import { buildRuleBasedDjCue, type DjSchedulerTrack } from './scheduler';
 
-const DEFAULT_DJ_TTS_VOICE = 'zh-TW-HsiaoChenNeural';
+const DEFAULT_DJ_TTS_VOICE = 'nova';
 
 export type PrefetchTrack = {
   artist: string;
@@ -30,7 +30,7 @@ export type PrefetchNextDjInput = {
 export type PrefetchNextDjOutput = {
   audioUrl: string | null;
   cached: boolean;
-  provider: 'azure' | 'browser-only' | 'cache' | 'edge-tts';
+  provider: 'azure' | 'browser-only' | 'cache' | 'edge-tts' | 'openai';
   script: string;
 };
 

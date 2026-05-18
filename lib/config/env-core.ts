@@ -36,7 +36,7 @@ const serverEnvSchema = z
     LLM_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
     NEXTAUTH_SECRET: z.string().min(1),
     REDIS_URL: optionalUrlSchema,
-    TTS_PROVIDER: z.enum(['edge-tts', 'azure', 'browser-only']).default('browser-only'),
+    TTS_PROVIDER: z.enum(['edge-tts', 'azure', 'openai', 'browser-only']).default('browser-only'),
     AZURE_SPEECH_KEY: optionalSecretSchema,
     AZURE_SPEECH_REGION: z.string().trim().min(1).max(80).optional(),
     AUDIO_STORAGE_PROVIDER: z.enum(['zeabur-volume', 'r2', 'vercel-blob']).default('zeabur-volume'),

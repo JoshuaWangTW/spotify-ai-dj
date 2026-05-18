@@ -32,7 +32,7 @@ const djPrefetchOutputSchema = z
     audioUrl: z.string().trim().min(1).max(240).nullable(),
     cached: z.boolean(),
     ok: z.literal(true),
-    provider: z.enum(['azure', 'browser-only', 'cache', 'edge-tts']),
+    provider: z.enum(['azure', 'browser-only', 'cache', 'edge-tts', 'openai']),
     script: z.string().trim().min(1).max(240),
   })
   .strict();

@@ -1,4 +1,4 @@
-export type TtsProviderId = 'edge-tts' | 'azure' | 'browser-only';
+export type TtsProviderId = 'edge-tts' | 'azure' | 'openai' | 'browser-only';
 
 export type TtsSynthesizeInput = {
   text: string;
